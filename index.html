@@ -170,6 +170,8 @@ button.mini { padding: 5px 10px; font-size: 11px; }
   color: var(--blood); text-shadow: 3px 0 var(--cyan), -3px 0 var(--pumpkin); animation: flick 3s steps(1) infinite;
 }
 .hk-box p { margin: 0; }
+.hk-box .hk-link { align-self: flex-start; background: transparent; border: 0; color: var(--dim); text-decoration: underline; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 13px; padding: 4px 0; }
+.hk-box .hk-link:hover { background: transparent; color: var(--ink); }
 
 /* Užrakintas ekranas iki paleidimo */
 .lock {
@@ -315,7 +317,8 @@ button.mini { padding: 5px 10px; font-size: 11px; }
   <div class="hk-box">
     <h2 id="hk">Prieiga užblokuota</h2>
     <p id="hkmsg">Visi bandymai išnaudoti. Vaiduoklis.exe perėmė serverį. Pasikviesk mokytoją, kad atrakintų.</p>
-    <form class="pw" id="hf" autocomplete="off">
+    <button type="button" class="hk-link" id="hkT">Mokytojas</button>
+    <form class="pw" id="hf" autocomplete="off" hidden>
       <label class="field"><span>#</span><input id="hin" type="password" placeholder="mokytojo slaptažodis" aria-label="Mokytojo slaptažodis" style="letter-spacing:.04em"></label>
       <button type="submit" class="ghost">Atrakinti</button>
     </form>
@@ -390,10 +393,16 @@ function lockOut(reason) {
   $("pwin").disabled = true; $("go").disabled = true;
   $("hmsg").textContent = ""; $("hmsg").className = "msg";
   $("hin").value = "";
+  $("hf").hidden = true;
+  $("hkT").hidden = false;
   $("hacked").hidden = false;
   startRain();
-  setTimeout(function () { $("hin").focus(); }, 50);
 }
+$("hkT").addEventListener("click", function () {
+  $("hkT").hidden = true;
+  $("hf").hidden = false;
+  $("hin").focus();
+});
 function fmt(ms) {
   var s = Math.floor(ms / 1000), m = Math.floor(s / 60);
   return (m < 10 ? "0" : "") + m + ":" + (s % 60 < 10 ? "0" : "") + (s % 60);
