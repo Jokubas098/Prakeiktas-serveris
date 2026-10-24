@@ -278,7 +278,6 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 </head>
 <body>
 
-<div class="tr" id="tr" aria-hidden="true"></div>
 <div class="gate" id="gate" hidden role="dialog" aria-labelledby="gt">
   <div class="gate-box">
     <h3 id="gt">&#128274; Įvesk slaptažodį</h3>
@@ -508,10 +507,6 @@ $("gf").addEventListener("submit", function (e) {
     $("tmsg").className = "msg ok"; $("tmsg").textContent = "Sveikas, mokytojau. Gali keisti nustatymus.";
     $("teacher").scrollIntoView({ behavior: "smooth", block: "start" });
   }
-});
-$("tr").addEventListener("dblclick", function () {
-  if (!$("hacked").hidden) return;
-  openGate("teacher");
 });
 $("tr2").addEventListener("dblclick", function () { openGate("teacher"); });
 function fmt(ms) {
