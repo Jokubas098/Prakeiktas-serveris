@@ -105,11 +105,11 @@ form.pw { display: flex; flex-wrap: wrap; gap: 10px; }
 .head-text { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .head-text h1 { font-size: clamp(30px, 7vw, 56px); margin: 0; }
 .head-text .lede { font-size: 13px; }
-#door { flex: 1; justify-content: center; align-items: center; text-align: center; gap: clamp(16px, 3vh, 30px); padding: clamp(18px, 4vw, 44px); }
+#door { flex: 1; justify-content: center; align-items: center; text-align: center; gap: clamp(12px, 2.4vh, 22px); padding: clamp(16px, 3vw, 32px); }
 #door h2 { align-self: stretch; text-align: left; }
 .timer {
   position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px;
-  width: auto; max-width: 100%; padding: 18px clamp(22px, 5vw, 56px) 20px;
+  width: auto; max-width: 100%; padding: 14px clamp(18px, 4vw, 40px) 16px;
   border: 1px solid var(--line); background: linear-gradient(180deg, rgba(34,240,208,.07), rgba(34,240,208,0) 70%);
 }
 .timer::before, .timer::after { content: ""; position: absolute; width: 16px; height: 16px; border: 2px solid var(--cyan); }
@@ -118,7 +118,7 @@ form.pw { display: flex; flex-wrap: wrap; gap: 10px; }
 .timer-label { display: flex; align-items: center; gap: 10px; font-size: 12px; letter-spacing: .26em; text-transform: uppercase; color: var(--dim); }
 .timer-label::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .25; } }
-#clock { font-size: clamp(64px, 19vw, 190px); font-weight: 800; line-height: 1; color: var(--cyan); text-shadow: 0 0 28px rgba(34,240,208,.5); font-variant-numeric: tabular-nums; letter-spacing: .02em; white-space: nowrap; }
+#clock { font-size: clamp(48px, 11vw, 120px); font-weight: 800; line-height: 1; color: var(--cyan); text-shadow: 0 0 28px rgba(34,240,208,.5); font-variant-numeric: tabular-nums; letter-spacing: .02em; white-space: nowrap; }
 #clock.warn { text-shadow: 0 0 22px rgba(255,59,107,.55); }
 .meter { width: 100%; height: 4px; background: var(--line); overflow: hidden; }
 .meter i { display: block; height: 100%; width: 100%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); transition: width .25s linear; }
@@ -126,12 +126,12 @@ form.pw { display: flex; flex-wrap: wrap; gap: 10px; }
 .timer.warn::before, .timer.warn::after { border-color: var(--blood); }
 .timer.warn .meter i { background: var(--blood); box-shadow: 0 0 10px var(--blood); }
 .timer.warn .timer-label::before { background: var(--blood); box-shadow: 0 0 10px var(--blood); }
-#door #instr { max-width: 62ch; font-size: clamp(15px, 2.2vw, 19px); }
-#door .riddle { font-size: clamp(40px, 12vw, 110px); }
-#door form.pw { width: 100%; max-width: 680px; justify-content: center; }
+#door #instr { max-width: 62ch; font-size: clamp(14px, 1.8vw, 16px); }
+#door .riddle { font-size: clamp(30px, 7vw, 64px); }
+#door form.pw { width: 100%; max-width: 540px; justify-content: center; }
 #door .field { flex: 1 1 300px; padding: 0 16px; }
-#door .field input { font-size: clamp(20px, 4vw, 30px); padding: 16px 0; }
-#door form.pw button { font-size: 15px; padding: 16px 30px; }
+#door .field input { font-size: clamp(17px, 2.4vw, 22px); padding: 12px 0; }
+#door form.pw button { font-size: 14px; padding: 12px 24px; }
 #door .msg { font-size: 15px; }
 #door .tries { justify-content: center; }
 .final, .teacher { width: 100%; max-width: 760px; margin-inline: auto; }
