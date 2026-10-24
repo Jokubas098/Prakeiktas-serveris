@@ -227,6 +227,7 @@ button.mini { padding: 5px 10px; font-size: 11px; }
   color: var(--blood); text-shadow: 3px 0 var(--cyan), -3px 0 var(--pumpkin); animation: flick 3s steps(1) infinite;
 }
 .hk-box p { margin: 0; }
+.corner { position: absolute; right: 0; bottom: 0; width: 96px; height: 96px; z-index: 5; touch-action: manipulation; }
 .hk-box .hk-link { align-self: flex-start; background: transparent; border: 0; color: var(--dim); text-decoration: underline; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 13px; padding: 4px 0; }
 .hk-box .hk-link:hover { background: transparent; color: var(--ink); }
 
@@ -382,14 +383,9 @@ button.mini { padding: 5px 10px; font-size: 11px; }
   <canvas id="rain" aria-hidden="true"></canvas>
   <div class="hk-box">
     <h2 id="hk">Prieiga užblokuota</h2>
-    <p id="hkmsg">Visi bandymai išnaudoti. Vaiduoklis.exe perėmė serverį. Pasikviesk mokytoją, kad atrakintų.</p>
-    <button type="button" class="hk-link" id="hkT">Mokytojas</button>
-    <form class="pw" id="hf" autocomplete="off" hidden>
-      <label class="field"><span>#</span><input id="hin" type="password" placeholder="mokytojo slaptažodis" aria-label="Mokytojo slaptažodis" style="letter-spacing:.04em"></label>
-      <button type="submit" class="ghost">Atrakinti</button>
-    </form>
-    <div class="msg" id="hmsg" role="status"></div>
+    <p id="hkmsg">Visi bandymai išnaudoti. Vaiduoklis.exe perėmė serverį.</p>
   </div>
+  <div class="corner" id="corner" aria-hidden="true"></div>
 </div>
 
 <script>
@@ -454,21 +450,14 @@ function stopRain() {
 }
 function lockOut(reason) {
   $("hkmsg").textContent = reason === "time"
-    ? "Laikas baigėsi. Vaiduoklis.exe perėmė serverį. Pasikviesk mokytoją, kad atrakintų."
-    : "Visi bandymai išnaudoti. Vaiduoklis.exe perėmė serverį. Pasikviesk mokytoją, kad atrakintų.";
+    ? "Laikas baigėsi. Vaiduoklis.exe perėmė serverį."
+    : "Visi bandymai išnaudoti. Vaiduoklis.exe perėmė serverį.";
   $("pwin").disabled = true; $("go").disabled = true;
-  $("hmsg").textContent = ""; $("hmsg").className = "msg";
-  $("hin").value = "";
-  $("hf").hidden = true;
-  $("hkT").hidden = false;
   $("hacked").hidden = false;
   startRain();
 }
-$("hkT").addEventListener("click", function () {
-  $("hkT").hidden = true;
-  $("hf").hidden = false;
-  $("hin").focus();
-});
+/* Grįžti į pradžią: dukart spustelėti apatinį dešinįjį kampą */
+$("corner").addEventListener("dblclick", function () { beginSession(); });
 function fmt(ms) {
   var s = Math.floor(ms / 1000), m = Math.floor(s / 60);
   return (m < 10 ? "0" : "") + m + ":" + (s % 60 < 10 ? "0" : "") + (s % 60);
@@ -614,19 +603,6 @@ $("f").addEventListener("submit", function (e) {
     } else {
       $("msg").textContent = "PRIEIGA UŽDRAUSTA. Neteisingas slaptažodis. Liko " + tries + (tries === 1 ? " bandymas." : " bandymai.");
     }
-  }
-});
-$("hf").addEventListener("submit", function (e) {
-  e.preventDefault();
-  if (isTeacher($("hin").value)) {
-    resetRun();
-    closeTeacher();
-    startClock();
-    playTyping();
-    setTimeout(function () { $("pwin").focus(); }, 50);
-  } else {
-    $("hmsg").className = "msg bad";
-    $("hmsg").textContent = "Neteisingas mokytojo slaptažodis.";
   }
 });
 
