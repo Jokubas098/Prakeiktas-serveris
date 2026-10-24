@@ -107,9 +107,25 @@ form.pw { display: flex; flex-wrap: wrap; gap: 10px; }
 .head-text .lede { font-size: 13px; }
 #door { flex: 1; justify-content: center; align-items: center; text-align: center; gap: clamp(16px, 3vh, 30px); padding: clamp(18px, 4vw, 44px); }
 #door h2 { align-self: stretch; text-align: left; }
-.timer { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.timer-label { font-size: 12px; letter-spacing: .24em; text-transform: uppercase; color: var(--dim); }
-#clock { font-size: clamp(64px, 19vw, 190px); font-weight: 800; line-height: 1; color: var(--cyan); text-shadow: 0 0 28px rgba(34,240,208,.5); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.timer {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px;
+  width: min(100%, 440px); padding: 16px clamp(18px, 5vw, 40px) 18px;
+  border: 1px solid var(--line); background: linear-gradient(180deg, rgba(34,240,208,.07), rgba(34,240,208,0) 70%);
+}
+.timer::before, .timer::after { content: ""; position: absolute; width: 16px; height: 16px; border: 2px solid var(--cyan); }
+.timer::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+.timer::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+.timer-label { display: flex; align-items: center; gap: 10px; font-size: 12px; letter-spacing: .26em; text-transform: uppercase; color: var(--dim); }
+.timer-label::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+#clock { font-size: clamp(44px, 12vw, 104px); font-weight: 700; line-height: 1; color: var(--cyan); text-shadow: 0 0 22px rgba(34,240,208,.45); font-variant-numeric: tabular-nums; letter-spacing: .06em; }
+#clock.warn { text-shadow: 0 0 22px rgba(255,59,107,.55); }
+.meter { width: 100%; height: 4px; background: var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; width: 100%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); transition: width .25s linear; }
+.timer.warn { border-color: var(--blood); }
+.timer.warn::before, .timer.warn::after { border-color: var(--blood); }
+.timer.warn .meter i { background: var(--blood); box-shadow: 0 0 10px var(--blood); }
+.timer.warn .timer-label::before { background: var(--blood); box-shadow: 0 0 10px var(--blood); }
 #door #instr { max-width: 62ch; font-size: clamp(15px, 2.2vw, 19px); }
 #door .riddle { font-size: clamp(40px, 12vw, 110px); }
 #door form.pw { width: 100%; max-width: 680px; justify-content: center; }
@@ -227,7 +243,8 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 .lk-msg { min-height: 1.2em; font-size: 12px; color: #ffb3c1; }
 
 @media (prefers-reduced-motion: reduce) {
-  h1, .shake, .hk-box h2 { animation: none; }
+  h1, .shake, .hk-box h2, .timer-label::before { animation: none; }
+  .meter i { transition: none; }
   .lock { transition: none; }
 }
 </style>
@@ -257,7 +274,7 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 
   <section class="lvl" id="door" aria-labelledby="dh">
     <h2 id="dh"><span>Durys · Slaptažodis</span><span class="tag" id="state">UŽRAKINTA</span></h2>
-    <div class="timer"><span class="timer-label">Laikas</span><b id="clock">00:00</b></div>
+    <div class="timer" id="timer"><span class="timer-label" id="tlabel">Liko laiko</span><b id="clock">00:00</b><div class="meter" id="meter" aria-hidden="true"><i id="meterfill"></i></div></div>
     <p id="instr"></p>
     <div class="riddle" id="riddle"></div>
     <form class="pw" id="f" autocomplete="off">
@@ -452,10 +469,17 @@ function limitMs() {
   if (isNaN(n) || n < 0) n = parseInt(DEFAULTS.mins, 10);
   return n * 60000;
 }
+function setMeter(p) {
+  $("meter").hidden = (p === null);
+  if (p !== null) $("meterfill").style.width = p + "%";
+}
 function showIdleClock() {
   var lim = limitMs();
   $("clock").textContent = lim > 0 ? fmt(lim) : "00:00";
+  $("tlabel").textContent = lim > 0 ? "Liko laiko" : "Praėjo laiko";
   $("clock").classList.remove("warn");
+  $("timer").classList.remove("warn");
+  setMeter(lim > 0 ? 100 : null);
 }
 function tick() {
   var el = Date.now() - t0, lim = limitMs();
@@ -464,6 +488,8 @@ function tick() {
   if (left <= 0) {
     $("clock").textContent = "00:00";
     $("clock").classList.add("warn");
+    $("timer").classList.add("warn");
+    setMeter(0);
     stopClock();
     if (!done) {
       $("msg").className = "msg bad";
@@ -474,6 +500,8 @@ function tick() {
   }
   $("clock").textContent = fmt(Math.ceil(left / 1000) * 1000);
   $("clock").classList.toggle("warn", left <= 60000);
+  $("timer").classList.toggle("warn", left <= 60000);
+  setMeter(Math.max(0, left / lim * 100));
 }
 function startClock(at) {
   if (started || locked) return;
