@@ -227,6 +227,12 @@ button.mini { padding: 5px 10px; font-size: 11px; }
   color: var(--blood); text-shadow: 3px 0 var(--cyan), -3px 0 var(--pumpkin); animation: flick 3s steps(1) infinite;
 }
 .hk-box p { margin: 0; }
+.tr { position: fixed; top: 0; right: 0; width: 72px; height: 72px; z-index: 60; touch-action: manipulation; }
+.gate { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.78); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.gate-box { width: 100%; max-width: 380px; background: var(--void); border: 1px solid var(--cyan); box-shadow: 0 0 30px rgba(34,240,208,.25); padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.gate-box h3 { margin: 0; color: var(--cyan); font-size: 15px; font-weight: 600; }
+.gate-box form { display: flex; gap: 8px; flex-wrap: wrap; }
+.gate-box .field { flex: 1 1 180px; }
 .corner { position: absolute; right: 0; bottom: 0; width: 96px; height: 96px; z-index: 5; touch-action: manipulation; }
 .hk-box .hk-link { align-self: flex-start; background: transparent; border: 0; color: var(--dim); text-decoration: underline; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 13px; padding: 4px 0; }
 .hk-box .hk-link:hover { background: transparent; color: var(--ink); }
@@ -272,6 +278,18 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 </head>
 <body>
 
+<div class="tr" id="tr" aria-hidden="true"></div>
+<div class="gate" id="gate" hidden role="dialog" aria-labelledby="gt">
+  <div class="gate-box">
+    <h3 id="gt">&#128274; Įvesk slaptažodį</h3>
+    <form id="gf" autocomplete="off">
+      <label class="field"><span>#</span><input id="gin" type="password" placeholder="slaptažodis" aria-label="Slaptažodis"></label>
+      <button type="submit" class="ghost">Gerai</button>
+      <button type="button" class="ghost" id="gx">Atšaukti</button>
+    </form>
+    <div class="msg" id="gmsg" role="status"></div>
+  </div>
+</div>
 <div class="wrap">
   <div class="screen">
   <div class="bar">
@@ -457,7 +475,39 @@ function lockOut(reason) {
   startRain();
 }
 /* Grįžti į pradžią: dukart spustelėti apatinį dešinįjį kampą */
-$("corner").addEventListener("dblclick", function () { beginSession(); });
+$("corner").addEventListener("dblclick", function () { openGate("restart"); });
+
+/* Slaptažodžio langelis: viršutinis dešinysis kampas (nustatymai) ir apatinis dešinysis kampas hacker ekrane (pradžia) */
+var gateMode = "";
+function openGate(mode) {
+  gateMode = mode;
+  $("gin").value = ""; $("gmsg").className = "msg"; $("gmsg").textContent = "";
+  $("gate").hidden = false;
+  setTimeout(function () { $("gin").focus(); }, 50);
+}
+function closeGate() { $("gate").hidden = true; $("gin").value = ""; gateMode = ""; }
+$("gx").addEventListener("click", closeGate);
+$("gf").addEventListener("submit", function (e) {
+  e.preventDefault();
+  if (!isTeacher($("gin").value)) {
+    $("gmsg").className = "msg bad"; $("gmsg").textContent = "Neteisingas slaptažodis.";
+    $("gin").value = "";
+    return;
+  }
+  var m = gateMode;
+  closeGate();
+  if (m === "restart") { beginSession(); }
+  else if (m === "teacher") {
+    $("teacher").hidden = false;
+    openPanel();
+    $("tmsg").className = "msg ok"; $("tmsg").textContent = "Sveikas, mokytojau. Gali keisti nustatymus.";
+    $("teacher").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+});
+$("tr").addEventListener("dblclick", function () {
+  if (!$("hacked").hidden || !$("lock").hidden) return;
+  openGate("teacher");
+});
 function fmt(ms) {
   var s = Math.floor(ms / 1000), m = Math.floor(s / 60);
   return (m < 10 ? "0" : "") + m + ":" + (s % 60 < 10 ? "0" : "") + (s % 60);
