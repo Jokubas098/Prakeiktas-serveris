@@ -377,6 +377,7 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 </div>
 
 <div class="lock" id="lock" hidden role="dialog" aria-label="Užrakintas ekranas">
+  <div class="tr" id="tr2" aria-hidden="true"></div>
   <div class="lk-top">
     <div class="lk-time" id="lkTime">00:00</div>
     <div class="lk-date" id="lkDate"></div>
@@ -498,6 +499,10 @@ $("gf").addEventListener("submit", function (e) {
   closeGate();
   if (m === "restart") { beginSession(); }
   else if (m === "teacher") {
+    if (locked) {
+      stopLockTimer(); locked = false;
+      $("lock").hidden = true; $("lock").classList.remove("fade");
+    }
     $("teacher").hidden = false;
     openPanel();
     $("tmsg").className = "msg ok"; $("tmsg").textContent = "Sveikas, mokytojau. Gali keisti nustatymus.";
@@ -505,9 +510,10 @@ $("gf").addEventListener("submit", function (e) {
   }
 });
 $("tr").addEventListener("dblclick", function () {
-  if (!$("hacked").hidden || !$("lock").hidden) return;
+  if (!$("hacked").hidden) return;
   openGate("teacher");
 });
+$("tr2").addEventListener("dblclick", function () { openGate("teacher"); });
 function fmt(ms) {
   var s = Math.floor(ms / 1000), m = Math.floor(s / 60);
   return (m < 10 ? "0" : "") + m + ":" + (s % 60 < 10 ? "0" : "") + (s % 60);
