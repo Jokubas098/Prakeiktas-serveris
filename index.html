@@ -147,8 +147,31 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .note { color: var(--dim); font-size: 12px; margin: 0; }
 
+/* Bandymai ir "hakerio ekranas" */
+.tries { display: flex; gap: 8px; align-items: center; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--pumpkin); background: var(--pumpkin); box-shadow: 0 0 8px var(--pumpkin); }
+.dot.off { background: transparent; box-shadow: none; border-color: var(--dim); }
+.hacked {
+  position: fixed; inset: 0; z-index: 100; background: #000;
+  display: flex; align-items: center; justify-content: center;
+  padding-block: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.hacked canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.hk-box {
+  position: relative; width: 100%; max-width: 560px; background: rgba(0,0,0,.84);
+  border: 1px solid var(--blood); box-shadow: 0 0 40px rgba(255,59,107,.35);
+  padding: 24px 20px; display: flex; flex-direction: column; gap: 14px;
+}
+.hk-box h2 {
+  margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(30px, 9vw, 56px); line-height: 1;
+  color: var(--blood); text-shadow: 3px 0 var(--cyan), -3px 0 var(--pumpkin); animation: flick 3s steps(1) infinite;
+}
+.hk-box p { margin: 0; }
+
 @media (prefers-reduced-motion: reduce) {
-  h1, .shake { animation: none; }
+  h1, .shake, .hk-box h2 { animation: none; }
 }
 </style>
 </head>
@@ -182,6 +205,7 @@ button.mini { padding: 5px 10px; font-size: 11px; }
       <button type="submit" id="go">Atrakinti</button>
     </form>
     <div class="msg" id="msg" role="status"></div>
+    <div class="tries" id="tries" aria-live="polite"></div>
   </section>
 
   <section class="final" id="final" hidden>
@@ -224,6 +248,19 @@ button.mini { padding: 5px 10px; font-size: 11px; }
   </section>
 </div>
 
+<div class="hacked" id="hacked" hidden role="alertdialog" aria-labelledby="hk">
+  <canvas id="rain" aria-hidden="true"></canvas>
+  <div class="hk-box">
+    <h2 id="hk">Prieiga užblokuota</h2>
+    <p>Visi bandymai išnaudoti. Vaiduoklis.exe perėmė serverį. Pasikviesk mokytoją, kad atrakintų.</p>
+    <form class="pw" id="hf" autocomplete="off">
+      <label class="field"><span>#</span><input id="hin" type="password" placeholder="mokytojo slaptažodis" aria-label="Mokytojo slaptažodis" style="letter-spacing:.04em"></label>
+      <button type="submit" class="ghost">Atrakinti</button>
+    </form>
+    <div class="msg" id="hmsg" role="status"></div>
+  </div>
+</div>
+
 <script>
 /* Mokytojo prieigos žodis laikomas base64 forma (nesvarbu didžiosios ar mažosios raidės). */
 var TEACHER = "S0FUSU5BUw==";
@@ -237,6 +274,59 @@ var KEY = "prakeiktas-serveris-v1";
 
 function $(id) { return document.getElementById(id); }
 function norm(s) { return s.replace(/\s+/g, "").toUpperCase(); }
+function isTeacher(v) { try { return btoa(norm(v)) === TEACHER; } catch (e) { return false; } }
+var MAX_TRIES = 3, tries = MAX_TRIES;
+function renderTries() {
+  var h = "<span>Bandymai</span>";
+  for (var i = 0; i < MAX_TRIES; i++) h += '<span class="dot' + (i < tries ? "" : " off") + '"></span>';
+  $("tries").innerHTML = h;
+}
+
+/* Hakerio ekranas: raidės krenta per visą ekraną */
+var rainId = null, onResize = null;
+function startRain() {
+  stopRain();
+  var c = $("rain"), ctx = c.getContext("2d");
+  var chars = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ#$%&@<>/|{}[]=+*", size = 16, drops = [];
+  function fit() {
+    c.width = window.innerWidth; c.height = window.innerHeight;
+    drops = [];
+    for (var i = 0; i < Math.ceil(c.width / size); i++) drops[i] = Math.floor(Math.random() * -40);
+  }
+  fit();
+  onResize = fit;
+  window.addEventListener("resize", onResize);
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, c.width, c.height);
+  function frame() {
+    ctx.fillStyle = "rgba(0,0,0,.08)";
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.font = size + "px monospace";
+    for (var i = 0; i < drops.length; i++) {
+      var r = Math.random();
+      ctx.fillStyle = r < .03 ? "#ff3b6b" : (r < .08 ? "#ff7a1a" : "#22f0d0");
+      ctx.fillText(chars.charAt(Math.floor(Math.random() * chars.length)), i * size, drops[i] * size);
+      if (drops[i] * size > c.height && Math.random() > .975) drops[i] = 0;
+      drops[i]++;
+    }
+  }
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) { for (var k = 0; k < 160; k++) frame(); return; }
+  (function loop() { frame(); rainId = requestAnimationFrame(loop); })();
+}
+function stopRain() {
+  if (rainId) cancelAnimationFrame(rainId);
+  rainId = null;
+  if (onResize) window.removeEventListener("resize", onResize);
+  onResize = null;
+}
+function lockOut() {
+  $("pwin").disabled = true; $("go").disabled = true;
+  $("hmsg").textContent = ""; $("hmsg").className = "msg";
+  $("hin").value = "";
+  $("hacked").hidden = false;
+  startRain();
+  setTimeout(function () { $("hin").focus(); }, 50);
+}
 function fmt(ms) {
   var s = Math.floor(ms / 1000), m = Math.floor(s / 60);
   return (m < 10 ? "0" : "") + m + ":" + (s % 60 < 10 ? "0" : "") + (s % 60);
@@ -278,6 +368,10 @@ function resetRun() {
   $("go").disabled = false;
   $("msg").textContent = ""; $("msg").className = "msg";
   $("final").hidden = true;
+  tries = MAX_TRIES;
+  stopRain();
+  $("hacked").hidden = true;
+  renderTries();
   render();
 }
 
@@ -299,9 +393,25 @@ $("f").addEventListener("submit", function (e) {
     $("final").hidden = false;
     setTimeout(function () { $("final").scrollIntoView({ behavior: "smooth", block: "start" }); }, 500);
   } else {
+    tries--;
+    renderTries();
     $("msg").className = "msg bad";
-    $("msg").textContent = "PRIEIGA UŽDRAUSTA. Neteisingas slaptažodis, bandyk dar kartą.";
     f.classList.remove("shake"); void f.offsetWidth; f.classList.add("shake");
+    if (tries <= 0) {
+      $("msg").textContent = "PRIEIGA UŽBLOKUOTA. Bandymai baigėsi.";
+      lockOut();
+    } else {
+      $("msg").textContent = "PRIEIGA UŽDRAUSTA. Neteisingas slaptažodis. Liko " + tries + (tries === 1 ? " bandymas." : " bandymai.");
+    }
+  }
+});
+$("hf").addEventListener("submit", function (e) {
+  e.preventDefault();
+  if (isTeacher($("hin").value)) {
+    resetRun();
+  } else {
+    $("hmsg").className = "msg bad";
+    $("hmsg").textContent = "Neteisingas mokytojo slaptažodis.";
   }
 });
 
@@ -318,8 +428,7 @@ function openPanel() {
 }
 $("tf").addEventListener("submit", function (e) {
   e.preventDefault();
-  var ok = false;
-  try { ok = btoa($("tin").value.replace(/\s+/g, "").toUpperCase()) === TEACHER; } catch (err) { ok = false; }
+  var ok = isTeacher($("tin").value);
   if (ok) {
     $("tin").value = "";
     $("tmsg").className = "msg ok";
@@ -376,6 +485,7 @@ $("logout").addEventListener("click", function () {
 
 loadCfg();
 render();
+renderTries();
 </script>
 
 </body>
