@@ -140,11 +140,11 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 .teacher .field input { text-transform: none; letter-spacing: .04em; }
 .panel { border: 1px solid var(--pumpkin); padding: 16px; display: flex; flex-direction: column; gap: 14px; background: var(--panel); }
 .panel label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
-.panel input[type=text], .panel input[type=number], .panel textarea {
+.panel input[type=text], .panel input[type=number], .panel input[type=time], .panel textarea {
   font: inherit; font-size: 15px; letter-spacing: normal; text-transform: none; color: var(--ink);
   background: var(--void); border: 1px solid var(--line); padding: 10px 12px; width: 100%; min-width: 0; resize: vertical;
 }
-.panel input[type=text]:focus, .panel input[type=number]:focus, .panel textarea:focus { outline: 0; border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
+.panel input[type=text]:focus, .panel input[type=number]:focus, .panel input[type=time]:focus, .panel textarea:focus { outline: 0; border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .note { color: var(--dim); font-size: 12px; margin: 0; }
 
@@ -171,8 +171,41 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 }
 .hk-box p { margin: 0; }
 
+/* Užrakintas ekranas iki paleidimo */
+.lock {
+  position: fixed; inset: 0; z-index: 120; color: #fff;
+  font-family: "Segoe UI", "Segoe UI Variable", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  background:
+    radial-gradient(90% 70% at 18% 8%, rgba(120,84,255,.55) 0%, transparent 62%),
+    radial-gradient(70% 55% at 92% 92%, rgba(20,200,190,.38) 0%, transparent 62%),
+    radial-gradient(50% 30% at 50% 110%, rgba(255,122,26,.35) 0%, transparent 70%),
+    linear-gradient(160deg, #0e0b24, #1b1240 55%, #07141f);
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  transition: opacity .7s;
+}
+.lock.fade { opacity: 0; pointer-events: none; }
+.lk-top { margin-top: clamp(40px, 12vh, 120px); text-align: center; }
+.lk-time { font-size: clamp(76px, 22vw, 168px); font-weight: 300; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.lk-date { font-size: clamp(18px, 4.6vw, 30px); margin-top: 6px; opacity: .92; text-transform: capitalize; }
+.lk-bottom { width: 100%; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 14px; }
+.lk-note { display: flex; align-items: center; gap: 10px; font-size: 15px; opacity: .92; min-width: 0; }
+.lk-note b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.lk-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 0; }
+.lk-icons { display: flex; align-items: center; gap: 14px; opacity: .9; }
+.lock button { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 13px; }
+.lock .lk-link { background: transparent; border: 0; color: rgba(255,255,255,.7); text-decoration: underline; padding: 4px 6px; cursor: pointer; }
+.lock .lk-link:hover { color: #fff; background: transparent; }
+.lock form { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.lock input { font: inherit; font-size: 15px; padding: 8px 10px; border: 1px solid rgba(255,255,255,.4); background: rgba(0,0,0,.4); color: #fff; width: 210px; max-width: 100%; min-width: 0; }
+.lock input:focus { outline: 2px solid #fff; outline-offset: 1px; }
+.lock button[type=submit] { background: #fff; color: #111; border: 0; padding: 8px 16px; font-weight: 600; }
+.lock button[type=submit]:hover { background: #e6e6e6; }
+.lk-msg { min-height: 1.2em; font-size: 12px; color: #ffb3c1; }
+
 @media (prefers-reduced-motion: reduce) {
   h1, .shake, .hk-box h2 { animation: none; }
+  .lock { transition: none; }
 }
 </style>
 </head>
@@ -227,7 +260,10 @@ button.mini { padding: 5px 10px; font-size: 11px; }
       <label for="np">Mokinių slaptažodis
         <input id="np" type="text" spellcheck="false">
       </label>
-      <label for="nm">Laikas minutėmis (0 reiškia be laiko ribos)
+      <label for="nd">Laikas iki paleidimo minutėmis (0 reiškia, kad užrakinto ekrano nebus)
+        <input id="nd" type="number" min="0" max="120" step="1" inputmode="numeric">
+      </label>
+      <label for="nm">Laikas slaptažodžiui įvesti minutėmis (0 reiškia be laiko ribos)
         <input id="nm" type="number" min="0" max="180" step="1" inputmode="numeric">
       </label>
       <label for="nr">Mįslė (didelis tekstas, pavyzdžiui užšifruotas žodis)
@@ -242,14 +278,40 @@ button.mini { padding: 5px 10px; font-size: 11px; }
       <div class="row">
         <button type="button" id="save">Išsaugoti</button>
         <button type="button" class="ghost" id="restart">Pradėti iš naujo</button>
+        <button type="button" class="ghost" id="launchnow">Paleisti dabar</button>
         <button type="button" class="ghost" id="defaults">Atstatyti pradinius</button>
         <button type="button" class="ghost" id="fs" hidden>Per visą ekraną</button>
         <button type="button" class="ghost" id="logout">Atsijungti</button>
       </div>
       <div class="msg" id="pmsg" role="status"></div>
-      <p class="note">Pakeitimai išsaugomi tik šiame įrenginyje ir šioje naršyklėje. Mokiniai kituose įrenginiuose matys pradinį slaptažodį.</p>
+      <p class="note">Pakeitimai išsaugomi tik šiame įrenginyje ir šioje naršyklėje. Mokiniai kituose įrenginiuose matys pradinį slaptažodį. Iki paleidimo rodomas užrakintas ekranas. Kai laikas baigiasi, atsiveria slaptažodžio langas ir pradeda eiti laikas slaptažodžiui įvesti. Užrakintame ekrane mokytojas gali paspausti „Mokytojas“ ir įvesti savo slaptažodį, kad paleistų iš karto.</p>
     </div>
   </section>
+</div>
+
+<div class="lock" id="lock" hidden role="dialog" aria-label="Užrakintas ekranas">
+  <div class="lk-top">
+    <div class="lk-time" id="lkTime">00:00</div>
+    <div class="lk-date" id="lkDate"></div>
+  </div>
+  <div class="lk-bottom">
+    <div class="lk-note">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+      <span>Serveris paleidžiamas po <b id="lkLeft">00:00</b></span>
+    </div>
+    <div class="lk-right">
+      <form id="lkF" hidden autocomplete="off">
+        <input id="lkin" type="password" placeholder="mokytojo slaptažodis" aria-label="Mokytojo slaptažodis">
+        <button type="submit">Gerai</button>
+      </form>
+      <div class="lk-msg" id="lkmsg" role="status"></div>
+      <div class="lk-icons">
+        <button type="button" class="lk-link" id="lkT">Mokytojas</button>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 8.8a15 15 0 0 1 20 0"/><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16.1a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor"/></svg>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="hacked" id="hacked" hidden role="alertdialog" aria-labelledby="hk">
@@ -269,6 +331,7 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 /* Mokytojo prieigos žodis laikomas base64 forma (nesvarbu didžiosios ar mažosios raidės). */
 var TEACHER = "S0FUSU5BUw==";
 var DEFAULTS = {
+  delay: "1",
   mins: "15",
   pw: "KAPAS",
   riddle: "NDSDV",
@@ -382,9 +445,9 @@ function tick() {
   $("clock").textContent = fmt(Math.ceil(left / 1000) * 1000);
   $("clock").classList.toggle("warn", left <= 60000);
 }
-function startClock() {
-  if (started) return;
-  started = true; t0 = Date.now();
+function startClock(at) {
+  if (started || locked) return;
+  started = true; t0 = (typeof at === "number") ? at : Date.now();
   tick();
   timer = setInterval(tick, 250);
 }
@@ -448,16 +511,86 @@ $("hf").addEventListener("submit", function (e) {
   e.preventDefault();
   if (isTeacher($("hin").value)) {
     resetRun();
+    startClock();
+    setTimeout(function () { $("pwin").focus(); }, 50);
   } else {
     $("hmsg").className = "msg bad";
     $("hmsg").textContent = "Neteisingas mokytojo slaptažodis.";
   }
 });
 
-document.addEventListener("keydown", startClock, { once: true });
+
+/* Užrakintas ekranas iki paleidimo. Kai laikas baigiasi, atsiveria durys ir prasideda laikmatis. */
+var locked = false, lockEnd = 0, lockTimer = null;
+function z2(n) { return (n < 10 ? "0" : "") + n; }
+function fmtLong(ms) {
+  var s = Math.ceil(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+  return (h > 0 ? h + ":" + z2(m) : z2(m)) + ":" + z2(x);
+}
+function paintLock() {
+  var d = new Date(), ds = "";
+  $("lkTime").textContent = z2(d.getHours()) + ":" + z2(d.getMinutes());
+  try { ds = d.toLocaleDateString("lt-LT", { weekday: "long", month: "long", day: "numeric" }); } catch (e) { ds = ""; }
+  $("lkDate").textContent = ds;
+  $("lkLeft").textContent = fmtLong(Math.max(0, lockEnd - Date.now()));
+}
+function stopLockTimer() { if (lockTimer) clearInterval(lockTimer); lockTimer = null; }
+function lockTick() {
+  if (Date.now() >= lockEnd) { launch(); return; }
+  paintLock();
+}
+function showLock(ms) {
+  var l = $("lock");
+  l.classList.remove("fade");
+  l.hidden = false;
+  $("lkF").hidden = true; $("lkin").value = ""; $("lkmsg").textContent = "";
+  locked = true;
+  lockEnd = Date.now() + ms;
+  paintLock();
+  stopLockTimer();
+  lockTimer = setInterval(lockTick, 250);
+}
+function launch() {
+  if (!locked) return;
+  stopLockTimer();
+  locked = false;
+  var l = $("lock");
+  l.classList.add("fade");
+  setTimeout(function () { if (!locked) l.hidden = true; }, 750);
+  startClock();
+  setTimeout(function () { if (!locked) $("pwin").focus(); }, 400);
+}
+function beginSession() {
+  stopLockTimer();
+  locked = false;
+  resetRun();
+  var n = parseInt(cfg.delay, 10);
+  if (isNaN(n) || n < 0) n = parseInt(DEFAULTS.delay, 10);
+  if (n > 0) {
+    showLock(n * 60000);
+  } else {
+    $("lock").hidden = true;
+    startClock();
+  }
+}
+$("lkT").addEventListener("click", function () {
+  $("lkF").hidden = false;
+  $("lkin").focus();
+});
+$("lkF").addEventListener("submit", function (e) {
+  e.preventDefault();
+  if (isTeacher($("lkin").value)) {
+    launch();
+  } else {
+    $("lkmsg").textContent = "Neteisingas mokytojo slaptažodis.";
+    $("lkin").value = "";
+    $("lkin").focus();
+  }
+});
 
 /* Teacher console */
 function openPanel() {
+  $("nd").value = cfg.delay;
   $("nm").value = cfg.mins;
   $("np").value = cfg.pw;
   $("nr").value = cfg.riddle;
@@ -484,17 +617,24 @@ $("save").addEventListener("click", function () {
   if (np === "") { $("pmsg").className = "msg bad"; $("pmsg").textContent = "Mokinių slaptažodis negali būti tuščias."; return; }
   var mins = parseInt($("nm").value, 10);
   if (isNaN(mins) || mins < 0 || mins > 180) { $("pmsg").className = "msg bad"; $("pmsg").textContent = "Laikas turi būti skaičius nuo 0 iki 180 minučių."; return; }
-  var obj = { mins: String(mins), pw: np, riddle: $("nr").value.trim(), instr: $("ni").value.trim(), fin: $("nf").value.trim() };
+  var delay = parseInt($("nd").value, 10);
+  if (isNaN(delay) || delay < 0 || delay > 120) { $("pmsg").className = "msg bad"; $("pmsg").textContent = "Laikas iki paleidimo turi būti skaičius nuo 0 iki 120 minučių."; return; }
+  var obj = { delay: String(delay), mins: String(mins), pw: np, riddle: $("nr").value.trim(), instr: $("ni").value.trim(), fin: $("nf").value.trim() };
   var ok = saveCfg(obj);
   loadCfg();
   resetRun();
   $("pmsg").className = ok ? "msg ok" : "msg bad";
-  $("pmsg").textContent = ok ? "Išsaugota. Durys vėl užrakintos naujam bandymui." : "Šioje naršyklėje išsaugoti nepavyko. Pakeitimai veiks tik kol puslapis atidarytas.";
-  if (!ok) { cfg = { mins: obj.mins, pw: obj.pw, riddle: obj.riddle || DEFAULTS.riddle, instr: obj.instr || DEFAULTS.instr, fin: obj.fin || DEFAULTS.fin }; resetRun(); }
+  $("pmsg").textContent = ok ? "Išsaugota. Paspausk „Pradėti iš naujo“, kad paleistum visą eigą su naujais nustatymais." : "Šioje naršyklėje išsaugoti nepavyko. Pakeitimai veiks tik kol puslapis atidarytas.";
+  if (!ok) { cfg = { delay: obj.delay, mins: obj.mins, pw: obj.pw, riddle: obj.riddle || DEFAULTS.riddle, instr: obj.instr || DEFAULTS.instr, fin: obj.fin || DEFAULTS.fin }; resetRun(); }
 });
 $("restart").addEventListener("click", function () {
-  resetRun();
-  $("pmsg").className = "msg ok"; $("pmsg").textContent = "Durys užrakintos iš naujo.";
+  beginSession();
+  $("pmsg").className = "msg ok"; $("pmsg").textContent = "Viskas paleista iš naujo.";
+});
+$("launchnow").addEventListener("click", function () {
+  if (locked) { launch(); }
+  else if (!started && !done) { startClock(); }
+  $("pmsg").className = "msg ok"; $("pmsg").textContent = "Paleista.";
 });
 $("defaults").addEventListener("click", function () {
   try { localStorage.removeItem(KEY); } catch (e) {}
@@ -527,8 +667,7 @@ $("logout").addEventListener("click", function () {
 
 loadCfg();
 render();
-renderTries();
-showIdleClock();
+beginSession();
 </script>
 
 </body>
