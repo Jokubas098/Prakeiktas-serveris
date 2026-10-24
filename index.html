@@ -516,6 +516,7 @@ $("hf").addEventListener("submit", function (e) {
   e.preventDefault();
   if (isTeacher($("hin").value)) {
     resetRun();
+    closeTeacher();
     startClock();
     setTimeout(function () { $("pwin").focus(); }, 50);
   } else {
@@ -561,12 +562,16 @@ function launch() {
   var l = $("lock");
   l.classList.add("fade");
   setTimeout(function () { if (!locked) l.hidden = true; }, 750);
+  closeTeacher();
+  window.scrollTo(0, 0);
   startClock();
   setTimeout(function () { if (!locked) $("pwin").focus(); }, 400);
 }
 function beginSession() {
   stopLockTimer();
   locked = false;
+  closeTeacher();
+  window.scrollTo(0, 0);
   resetRun();
   var n = parseInt(cfg.delay, 10);
   if (isNaN(n) || n < 0) n = parseInt(DEFAULTS.delay, 10);
@@ -638,18 +643,22 @@ $("restart").addEventListener("click", function () {
 $("launchnow").addEventListener("click", function () {
   if (locked) { launch(); }
   else if (!started && !done) { startClock(); }
-  $("pmsg").className = "msg ok"; $("pmsg").textContent = "Paleista.";
+  closeTeacher();
+  window.scrollTo({ top: 0, behavior: "smooth" });
 });
 $("defaults").addEventListener("click", function () {
   try { localStorage.removeItem(KEY); } catch (e) {}
   loadCfg(); resetRun(); openPanel();
   $("pmsg").className = "msg ok"; $("pmsg").textContent = "Atstatyti pradiniai nustatymai.";
 });
-$("logout").addEventListener("click", function () {
+function closeTeacher() {
   $("panel").hidden = true;
   $("tmsg").className = "msg"; $("tmsg").textContent = "";
   $("tin").value = "";
   $("teacher").hidden = true;
+}
+$("logout").addEventListener("click", function () {
+  closeTeacher();
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
 
