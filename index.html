@@ -384,14 +384,8 @@ button.mini { padding: 5px 10px; font-size: 11px; }
   </div>
   <div class="lk-bottom">
     <div class="lk-right">
-      <form id="lkF" hidden autocomplete="off">
-        <input id="lkin" type="password" placeholder="mokytojo slaptažodis" aria-label="Mokytojo slaptažodis">
-        <button type="submit">Gerai</button>
-      </form>
-      <div class="lk-msg" id="lkmsg" role="status"></div>
       <div class="lk-icons">
-        <button type="button" class="lk-link" id="lkT">Mokytojas</button>
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 8.8a15 15 0 0 1 20 0"/><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16.1a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor"/></svg>
+        <span id="lkW" style="display:inline-flex;padding:8px;margin:-8px;touch-action:manipulation"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 8.8a15 15 0 0 1 20 0"/><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16.1a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor"/></svg></span>
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg>
       </div>
     </div>
@@ -682,7 +676,6 @@ function showLock(ms) {
   var l = $("lock");
   l.classList.remove("fade");
   l.hidden = false;
-  $("lkF").hidden = true; $("lkin").value = ""; $("lkmsg").textContent = "";
   locked = true;
   lockEnd = Date.now() + ms;
   paintLock();
@@ -718,20 +711,7 @@ function beginSession() {
     playTyping();
   }
 }
-$("lkT").addEventListener("click", function () {
-  $("lkF").hidden = false;
-  $("lkin").focus();
-});
-$("lkF").addEventListener("submit", function (e) {
-  e.preventDefault();
-  if (isTeacher($("lkin").value)) {
-    launch();
-  } else {
-    $("lkmsg").textContent = "Neteisingas mokytojo slaptažodis.";
-    $("lkin").value = "";
-    $("lkin").focus();
-  }
-});
+$("lkW").addEventListener("dblclick", function () { openGate("teacher"); });
 
 /* Teacher console */
 function openPanel() {
