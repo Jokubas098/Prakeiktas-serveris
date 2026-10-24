@@ -24,6 +24,9 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html { background: var(--void); }
+/* Slinkties juostų nerodome, bet puslapis vis tiek slenka */
+* { scrollbar-width: none; -ms-overflow-style: none; }
+*::-webkit-scrollbar { display: none; width: 0; height: 0; }
 body {
   margin: 0;
   background: var(--void);
