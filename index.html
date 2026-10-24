@@ -46,7 +46,7 @@ body::after {
   background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,.22) 3px);
   z-index: 50;
 }
-.wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.wrap { max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 
 .bar {
   display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between;
@@ -97,6 +97,27 @@ h1 {
 }
 
 form.pw { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* Pirmas ekranas: viršuje antraštė, visa kita vieta skirta slaptažodžiui ir dideliam laikmačiui */
+.screen { display: flex; flex-direction: column; gap: 20px; min-height: calc(100vh - 88px); min-height: calc(100dvh - 88px); }
+.head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.head .skull { font-size: 9px; }
+.head-text { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.head-text h1 { font-size: clamp(30px, 7vw, 56px); margin: 0; }
+.head-text .lede { font-size: 13px; }
+#door { flex: 1; justify-content: center; align-items: center; text-align: center; gap: clamp(16px, 3vh, 30px); padding: clamp(18px, 4vw, 44px); }
+#door h2 { align-self: stretch; text-align: left; }
+.timer { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.timer-label { font-size: 12px; letter-spacing: .24em; text-transform: uppercase; color: var(--dim); }
+#clock { font-size: clamp(64px, 19vw, 190px); font-weight: 800; line-height: 1; color: var(--cyan); text-shadow: 0 0 28px rgba(34,240,208,.5); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+#door #instr { max-width: 62ch; font-size: clamp(15px, 2.2vw, 19px); }
+#door .riddle { font-size: clamp(40px, 12vw, 110px); }
+#door form.pw { width: 100%; max-width: 680px; justify-content: center; }
+#door .field { flex: 1 1 300px; padding: 0 16px; }
+#door .field input { font-size: clamp(20px, 4vw, 30px); padding: 16px 0; }
+#door form.pw button { font-size: 15px; padding: 16px 30px; }
+#door .msg { font-size: 15px; }
+#door .tries { justify-content: center; }
 .field {
   flex: 1 1 200px; min-width: 0; display: flex; align-items: center; gap: 8px;
   border: 1px solid var(--line); background: var(--void); padding: 0 12px;
@@ -214,12 +235,12 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 <body>
 
 <div class="wrap">
+  <div class="screen">
   <div class="bar">
     <span>root@serveris:~# <b>ssh --prakeiktas</b></span>
-    <span>Laikas <b id="clock">00:00</b></span>
   </div>
 
-  <header style="display:flex;flex-direction:column;gap:14px">
+  <header class="head">
     <pre class="skull" id="skull" aria-hidden="true">   .-""""-.
   / -   -  \
  |  .-. .-. |
@@ -228,12 +249,15 @@ button.mini { padding: 5px 10px; font-size: 11px; }
   `. .---. .'
     | |||| |
     '-'--'-'</pre>
+    <div class="head-text">
     <h1>Prakeiktas serveris</h1>
     <p class="lede">Helovino naktį mokyklos serveris užsikrėtė virusu <em>Vaiduoklis.exe</em>. Jis uždarė duris, ir joms atrakinti reikia slaptažodžio. Išspręskite mįslę, kol serveris dar nesugedo galutinai.</p>
+    </div>
   </header>
 
   <section class="lvl" id="door" aria-labelledby="dh">
     <h2 id="dh"><span>Durys · Slaptažodis</span><span class="tag" id="state">UŽRAKINTA</span></h2>
+    <div class="timer"><span class="timer-label">Laikas</span><b id="clock">00:00</b></div>
     <p id="instr"></p>
     <div class="riddle" id="riddle"></div>
     <form class="pw" id="f" autocomplete="off">
@@ -243,6 +267,7 @@ button.mini { padding: 5px 10px; font-size: 11px; }
     <div class="msg" id="msg" role="status"></div>
     <div class="tries" id="tries" aria-live="polite"></div>
   </section>
+  </div>
 
   <section class="final" id="final" hidden>
     <h2>Serveris išgelbėtas</h2>
