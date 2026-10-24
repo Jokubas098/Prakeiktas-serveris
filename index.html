@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prakeiktas serveris</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Rubik+Glitch&display=swap">
+<style>
+/* Layout: one terminal column, a single locked door for students, a quiet teacher console at the bottom. Dark neon world, committed single theme. */
+:root {
+  --void: #0a0812;
+  --panel: #130f22;
+  --line: #2b2347;
+  --ink: #e9e4f5;
+  --dim: #9086ad;
+  --pumpkin: #ff7a1a;
+  --cyan: #22f0d0;
+  --blood: #ff3b6b;
+  --display: "Rubik Glitch", "Impact", "Arial Black", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--void); }
+body {
+  margin: 0;
+  background: var(--void);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1.6;
+  padding-block: 24px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background-image:
+    radial-gradient(60% 40% at 80% -5%, rgba(255,122,26,.16), transparent 70%),
+    radial-gradient(50% 40% at 0% 30%, rgba(34,240,208,.08), transparent 70%);
+  background-attachment: fixed;
+}
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,.22) 3px);
+  z-index: 50;
+}
+.wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+.bar {
+  display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between;
+  font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
+}
+.bar b { color: var(--cyan); font-weight: 600; }
+h1 {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(38px, 11vw, 76px);
+  line-height: .95;
+  margin: 8px 0 0;
+  color: var(--pumpkin);
+  text-wrap: balance;
+  text-shadow: 3px 0 var(--blood), -3px 0 var(--cyan);
+  animation: flick 5s steps(1) infinite;
+}
+@keyframes flick {
+  0%, 92%, 100% { text-shadow: 3px 0 var(--blood), -3px 0 var(--cyan); opacity: 1; }
+  93% { text-shadow: -5px 0 var(--blood), 5px 0 var(--cyan); opacity: .8; }
+  95% { text-shadow: 6px 2px var(--blood), -6px -2px var(--cyan); opacity: 1; }
+  97% { opacity: .6; }
+}
+.lede { margin: 0; max-width: 60ch; }
+.lede em { color: var(--cyan); font-style: normal; }
+.skull { margin: 0; color: var(--dim); font-size: 11px; line-height: 1.15; white-space: pre; overflow-x: auto; }
+
+.lvl {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 18px 18px 20px;
+  display: flex; flex-direction: column; gap: 14px;
+  min-width: 0;
+}
+.lvl h2 {
+  margin: 0; font-size: 13px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--pumpkin);
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px;
+}
+.tag { color: var(--blood); font-weight: 600; }
+.lvl.solved { border-color: var(--cyan); }
+.lvl.solved .tag { color: var(--cyan); }
+.lvl p { margin: 0; white-space: pre-line; }
+
+.riddle {
+  font-size: clamp(22px, 7vw, 38px); font-weight: 800; letter-spacing: .22em; color: var(--cyan);
+  text-shadow: 0 0 14px rgba(34,240,208,.55); overflow-wrap: anywhere; white-space: pre-line;
+}
+
+form.pw { display: flex; flex-wrap: wrap; gap: 10px; }
+.field {
+  flex: 1 1 200px; min-width: 0; display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--line); background: var(--void); padding: 0 12px;
+}
+.field:focus-within { border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
+.field span { color: var(--pumpkin); font-weight: 800; }
+.field input {
+  flex: 1; min-width: 0; background: transparent; border: 0; outline: 0;
+  color: var(--ink); font: inherit; font-size: 16px; letter-spacing: .12em; text-transform: uppercase; padding: 12px 0;
+}
+.field input::placeholder { color: var(--dim); text-transform: none; letter-spacing: .04em; }
+button {
+  font: inherit; font-weight: 800; font-size: 13px; letter-spacing: .1em; text-transform: uppercase;
+  cursor: pointer; padding: 12px 18px; border: 1px solid var(--pumpkin); background: var(--pumpkin); color: #1a0d02;
+}
+button:hover { background: #ff9440; }
+button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+button.ghost { background: transparent; color: var(--pumpkin); }
+button.ghost:hover { background: rgba(255,122,26,.12); }
+button:disabled { opacity: .35; cursor: not-allowed; }
+.msg { min-height: 1.6em; font-size: 13px; letter-spacing: .04em; }
+.msg.bad { color: var(--blood); }
+.msg.ok { color: var(--cyan); }
+.shake { animation: shake .35s; }
+@keyframes shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(4px); } }
+.hint {
+  border-left: 3px solid var(--cyan); padding: 8px 12px; background: rgba(34,240,208,.07); font-size: 14px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.mask { font-size: 24px; font-weight: 800; letter-spacing: .3em; color: var(--cyan); overflow-wrap: anywhere; }
+
+.final { border: 1px solid var(--cyan); background: linear-gradient(180deg, rgba(34,240,208,.1), transparent); padding: 22px 18px; display: flex; flex-direction: column; gap: 10px; }
+.final h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(28px, 8vw, 48px); color: var(--cyan); text-shadow: 0 0 18px rgba(34,240,208,.5); line-height: 1; }
+.final p { margin: 0; white-space: pre-line; }
+.final .time { color: var(--pumpkin); font-weight: 800; }
+
+/* Teacher console */
+.teacher { border-top: 1px dashed var(--line); padding-top: 18px; display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+.teacher h3 { margin: 0; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+.teacher .field input { text-transform: none; letter-spacing: .04em; }
+.panel { border: 1px solid var(--pumpkin); padding: 16px; display: flex; flex-direction: column; gap: 14px; background: var(--panel); }
+.panel label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.panel input[type=text], .panel textarea {
+  font: inherit; font-size: 15px; letter-spacing: normal; text-transform: none; color: var(--ink);
+  background: var(--void); border: 1px solid var(--line); padding: 10px 12px; width: 100%; min-width: 0; resize: vertical;
+}
+.panel input[type=text]:focus, .panel textarea:focus { outline: 0; border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.note { color: var(--dim); font-size: 12px; margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  h1, .shake { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="bar">
+    <span>root@serveris:~# <b>ssh --prakeiktas</b></span>
+    <span>Laikas <b id="clock">00:00</b></span>
+  </div>
+
+  <header style="display:flex;flex-direction:column;gap:14px">
+    <pre class="skull" aria-hidden="true">   .-""""-.
+  / -   -  \
+ |  .-. .-. |
+ |  \o| |o/ |
+ \   `-'-'  /
+  `. .---. .'
+    | |||| |
+    '-'--'-'</pre>
+    <h1>Prakeiktas serveris</h1>
+    <p class="lede">Helovino naktį mokyklos serveris užsikrėtė virusu <em>Vaiduoklis.exe</em>. Jis uždarė duris, ir joms atrakinti reikia slaptažodžio. Išspręskite mįslę, kol serveris dar nesugedo galutinai.</p>
+  </header>
+
+  <section class="lvl" id="door" aria-labelledby="dh">
+    <h2 id="dh"><span>Durys · Slaptažodis</span><span class="tag" id="state">UŽRAKINTA</span></h2>
+    <p id="instr"></p>
+    <div class="riddle" id="riddle"></div>
+    <form class="pw" id="f" autocomplete="off">
+      <label class="field"><span>&gt;</span><input id="pwin" type="text" placeholder="įrašyk slaptažodį" autocapitalize="characters" spellcheck="false" aria-label="Slaptažodis"></label>
+      <button type="submit" id="go">Atrakinti</button>
+    </form>
+    <div class="msg" id="msg" role="status"></div>
+  </section>
+
+  <section class="final" id="final" hidden>
+    <h2>Serveris išgelbėtas</h2>
+    <p id="finalmsg"></p>
+    <p>Jūsų laikas: <span class="time" id="finaltime">00:00</span></p>
+  </section>
+
+  <section class="teacher" aria-labelledby="th">
+    <h3 id="th">Mokytojo prieiga</h3>
+    <form class="pw" id="tf" autocomplete="off">
+      <label class="field"><span>#</span><input id="tin" type="password" placeholder="mokytojo slaptažodis" aria-label="Mokytojo slaptažodis" style="letter-spacing:.04em"></label>
+      <button type="submit" class="ghost">Prisijungti</button>
+    </form>
+    <div class="msg" id="tmsg" role="status"></div>
+
+    <div class="panel" id="panel" hidden>
+      <label for="np">Mokinių slaptažodis
+        <input id="np" type="text" spellcheck="false">
+      </label>
+      <label for="nr">Mįslė (didelis tekstas, pavyzdžiui užšifruotas žodis)
+        <input id="nr" type="text" spellcheck="false">
+      </label>
+      <label for="ni">Paaiškinimas mokiniams
+        <textarea id="ni" rows="3"></textarea>
+      </label>
+      <label for="nf">Žinutė, kai durys atsidaro
+        <textarea id="nf" rows="3"></textarea>
+      </label>
+      <div class="row">
+        <button type="button" id="save">Išsaugoti</button>
+        <button type="button" class="ghost" id="restart">Pradėti iš naujo</button>
+        <button type="button" class="ghost" id="defaults">Atstatyti pradinius</button>
+        <button type="button" class="ghost" id="logout">Atsijungti</button>
+      </div>
+      <div class="msg" id="pmsg" role="status"></div>
+      <p class="note">Pakeitimai išsaugomi tik šiame įrenginyje ir šioje naršyklėje. Mokiniai kituose įrenginiuose matys pradinį slaptažodį.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+/* Mokytojo prieigos žodis laikomas base64 forma (nesvarbu didžiosios ar mažosios raidės). */
+var TEACHER = "S0FUSU5BUw==";
+var DEFAULTS = {
+  pw: "KAPAS",
+  riddle: "NDSDV",
+  instr: "Virusas paliko užšifruotą žinutę. Kiekviena raidė pastumta 3 vietomis į priekį abėcėlėje. Atšifruok žodį ir įrašyk jį kaip slaptažodį.",
+  fin: "Durys atsidarė. Virusas Vaiduoklis.exe pašalintas. Atsiimk paskutinę užuominą iš mokytojo."
+};
+var KEY = "prakeiktas-serveris-v1";
+
+function $(id) { return document.getElementById(id); }
+function norm(s) { return s.replace(/\s+/g, "").toUpperCase(); }
+function fmt(ms) {
+  var s = Math.floor(ms / 1000), m = Math.floor(s / 60);
+  return (m < 10 ? "0" : "") + m + ":" + (s % 60 < 10 ? "0" : "") + (s % 60);
+}
+
+var cfg = {};
+function loadCfg() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { saved = null; }
+  cfg = {};
+  for (var k in DEFAULTS) cfg[k] = (saved && typeof saved[k] === "string" && saved[k] !== "") ? saved[k] : DEFAULTS[k];
+}
+function saveCfg(obj) {
+  try { localStorage.setItem(KEY, JSON.stringify(obj)); return true; } catch (e) { return false; }
+}
+
+var started = false, t0 = 0, timer = null, done = false;
+
+function startClock() {
+  if (started) return;
+  started = true; t0 = Date.now();
+  timer = setInterval(function () { $("clock").textContent = fmt(Date.now() - t0); }, 500);
+}
+function stopClock() { clearInterval(timer); timer = null; }
+
+function render() {
+  $("instr").textContent = cfg.instr;
+  $("riddle").textContent = cfg.riddle;
+  $("riddle").hidden = cfg.riddle.trim() === "";
+}
+
+function resetRun() {
+  stopClock();
+  started = false; done = false;
+  $("clock").textContent = "00:00";
+  $("door").classList.remove("solved");
+  $("state").textContent = "UŽRAKINTA";
+  $("pwin").value = ""; $("pwin").disabled = false;
+  $("go").disabled = false;
+  $("msg").textContent = ""; $("msg").className = "msg";
+  $("final").hidden = true;
+  render();
+}
+
+$("f").addEventListener("submit", function (e) {
+  e.preventDefault();
+  if (done) return;
+  startClock();
+  var f = $("f");
+  if (norm($("pwin").value) === norm(cfg.pw)) {
+    done = true;
+    stopClock();
+    $("door").classList.add("solved");
+    $("state").textContent = "ATRAKINTA";
+    $("msg").className = "msg ok";
+    $("msg").textContent = "PRIEIGA SUTEIKTA. Durys atsidaro...";
+    $("pwin").disabled = true; $("go").disabled = true;
+    $("finalmsg").textContent = cfg.fin;
+    $("finaltime").textContent = fmt(Date.now() - t0);
+    $("final").hidden = false;
+    setTimeout(function () { $("final").scrollIntoView({ behavior: "smooth", block: "start" }); }, 500);
+  } else {
+    $("msg").className = "msg bad";
+    $("msg").textContent = "PRIEIGA UŽDRAUSTA. Neteisingas slaptažodis, bandyk dar kartą.";
+    f.classList.remove("shake"); void f.offsetWidth; f.classList.add("shake");
+  }
+});
+
+document.addEventListener("keydown", startClock, { once: true });
+
+/* Teacher console */
+function openPanel() {
+  $("np").value = cfg.pw;
+  $("nr").value = cfg.riddle;
+  $("ni").value = cfg.instr;
+  $("nf").value = cfg.fin;
+  $("panel").hidden = false;
+  $("pmsg").textContent = ""; $("pmsg").className = "msg";
+}
+$("tf").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var ok = false;
+  try { ok = btoa($("tin").value.replace(/\s+/g, "").toUpperCase()) === TEACHER; } catch (err) { ok = false; }
+  if (ok) {
+    $("tin").value = "";
+    $("tmsg").className = "msg ok";
+    $("tmsg").textContent = "Sveikas, mokytojau. Gali keisti nustatymus.";
+    openPanel();
+  } else {
+    $("tmsg").className = "msg bad";
+    $("tmsg").textContent = "Neteisingas mokytojo slaptažodis.";
+  }
+});
+$("save").addEventListener("click", function () {
+  var np = $("np").value.trim();
+  if (np === "") { $("pmsg").className = "msg bad"; $("pmsg").textContent = "Mokinių slaptažodis negali būti tuščias."; return; }
+  var obj = { pw: np, riddle: $("nr").value.trim(), instr: $("ni").value.trim(), fin: $("nf").value.trim() };
+  var ok = saveCfg(obj);
+  loadCfg();
+  resetRun();
+  $("pmsg").className = ok ? "msg ok" : "msg bad";
+  $("pmsg").textContent = ok ? "Išsaugota. Durys vėl užrakintos naujam bandymui." : "Šioje naršyklėje išsaugoti nepavyko. Pakeitimai veiks tik kol puslapis atidarytas.";
+  if (!ok) { cfg = { pw: obj.pw, riddle: obj.riddle || DEFAULTS.riddle, instr: obj.instr || DEFAULTS.instr, fin: obj.fin || DEFAULTS.fin }; resetRun(); }
+});
+$("restart").addEventListener("click", function () {
+  resetRun();
+  $("pmsg").className = "msg ok"; $("pmsg").textContent = "Durys užrakintos iš naujo.";
+});
+$("defaults").addEventListener("click", function () {
+  try { localStorage.removeItem(KEY); } catch (e) {}
+  loadCfg(); resetRun(); openPanel();
+  $("pmsg").className = "msg ok"; $("pmsg").textContent = "Atstatyti pradiniai nustatymai.";
+});
+$("logout").addEventListener("click", function () {
+  $("panel").hidden = true;
+  $("tmsg").className = "msg"; $("tmsg").textContent = "";
+});
+
+loadCfg();
+render();
+</script>
+
+</body>
+</html>
