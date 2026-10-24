@@ -73,7 +73,7 @@ h1 {
 }
 .lede { margin: 0; max-width: 60ch; }
 .lede em { color: var(--cyan); font-style: normal; }
-.skull { margin: 0; color: var(--dim); font-size: 11px; line-height: 1.15; white-space: pre; overflow-x: auto; }
+.skull { margin: 0; color: var(--dim); font-size: 11px; line-height: 1.15; white-space: pre; overflow-x: auto; cursor: default; user-select: none; }
 
 .lvl {
   border: 1px solid var(--line);
@@ -188,7 +188,7 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 .lk-top { margin-top: clamp(40px, 12vh, 120px); text-align: center; }
 .lk-time { font-size: clamp(76px, 22vw, 168px); font-weight: 300; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .lk-date { font-size: clamp(18px, 4.6vw, 30px); margin-top: 6px; opacity: .92; text-transform: capitalize; }
-.lk-bottom { width: 100%; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 14px; }
+.lk-bottom { width: 100%; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: flex-end; gap: 14px; }
 .lk-note { display: flex; align-items: center; gap: 10px; font-size: 15px; opacity: .92; min-width: 0; }
 .lk-note b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .lk-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 0; }
@@ -218,7 +218,7 @@ button.mini { padding: 5px 10px; font-size: 11px; }
   </div>
 
   <header style="display:flex;flex-direction:column;gap:14px">
-    <pre class="skull" aria-hidden="true">   .-""""-.
+    <pre class="skull" id="skull" aria-hidden="true">   .-""""-.
   / -   -  \
  |  .-. .-. |
  |  \o| |o/ |
@@ -248,7 +248,7 @@ button.mini { padding: 5px 10px; font-size: 11px; }
     <p>Jūsų laikas: <span class="time" id="finaltime">00:00</span></p>
   </section>
 
-  <section class="teacher" aria-labelledby="th">
+  <section class="teacher" id="teacher" aria-labelledby="th" hidden>
     <h3 id="th">Mokytojo prieiga</h3>
     <form class="pw" id="tf" autocomplete="off">
       <label class="field"><span>#</span><input id="tin" type="password" placeholder="mokytojo slaptažodis" aria-label="Mokytojo slaptažodis" style="letter-spacing:.04em"></label>
@@ -295,10 +295,6 @@ button.mini { padding: 5px 10px; font-size: 11px; }
     <div class="lk-date" id="lkDate"></div>
   </div>
   <div class="lk-bottom">
-    <div class="lk-note">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-      <span>Serveris paleidžiamas po <b id="lkLeft">00:00</b></span>
-    </div>
     <div class="lk-right">
       <form id="lkF" hidden autocomplete="off">
         <input id="lkin" type="password" placeholder="mokytojo slaptažodis" aria-label="Mokytojo slaptažodis">
@@ -532,7 +528,6 @@ function paintLock() {
   $("lkTime").textContent = z2(d.getHours()) + ":" + z2(d.getMinutes());
   try { ds = d.toLocaleDateString("lt-LT", { weekday: "long", month: "long", day: "numeric" }); } catch (e) { ds = ""; }
   $("lkDate").textContent = ds;
-  $("lkLeft").textContent = fmtLong(Math.max(0, lockEnd - Date.now()));
 }
 function stopLockTimer() { if (lockTimer) clearInterval(lockTimer); lockTimer = null; }
 function lockTick() {
@@ -644,6 +639,23 @@ $("defaults").addEventListener("click", function () {
 $("logout").addEventListener("click", function () {
   $("panel").hidden = true;
   $("tmsg").className = "msg"; $("tmsg").textContent = "";
+  $("tin").value = "";
+  $("teacher").hidden = true;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+/* Mokytojo nustatymai paslėpti. Juos atidaro 5 greiti paspaudimai ant kaukolės, tada reikia mokytojo slaptažodžio. */
+var skullClicks = 0, skullTimer = null;
+$("skull").addEventListener("click", function () {
+  skullClicks++;
+  clearTimeout(skullTimer);
+  skullTimer = setTimeout(function () { skullClicks = 0; }, 1500);
+  if (skullClicks >= 5) {
+    skullClicks = 0;
+    $("teacher").hidden = false;
+    $("teacher").scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(function () { $("tin").focus(); }, 400);
+  }
 });
 
 /* Pilnas ekranas */
