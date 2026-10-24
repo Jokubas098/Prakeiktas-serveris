@@ -53,6 +53,7 @@ body::after {
   font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
 }
 .bar b { color: var(--cyan); font-weight: 600; }
+#clock.warn { color: var(--blood); }
 h1 {
   font-family: var(--display);
   font-weight: 400;
@@ -139,11 +140,11 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 .teacher .field input { text-transform: none; letter-spacing: .04em; }
 .panel { border: 1px solid var(--pumpkin); padding: 16px; display: flex; flex-direction: column; gap: 14px; background: var(--panel); }
 .panel label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
-.panel input[type=text], .panel textarea {
+.panel input[type=text], .panel input[type=number], .panel textarea {
   font: inherit; font-size: 15px; letter-spacing: normal; text-transform: none; color: var(--ink);
   background: var(--void); border: 1px solid var(--line); padding: 10px 12px; width: 100%; min-width: 0; resize: vertical;
 }
-.panel input[type=text]:focus, .panel textarea:focus { outline: 0; border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
+.panel input[type=text]:focus, .panel input[type=number]:focus, .panel textarea:focus { outline: 0; border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .note { color: var(--dim); font-size: 12px; margin: 0; }
 
@@ -226,6 +227,9 @@ button.mini { padding: 5px 10px; font-size: 11px; }
       <label for="np">Mokinių slaptažodis
         <input id="np" type="text" spellcheck="false">
       </label>
+      <label for="nm">Laikas minutėmis (0 reiškia be laiko ribos)
+        <input id="nm" type="number" min="0" max="180" step="1" inputmode="numeric">
+      </label>
       <label for="nr">Mįslė (didelis tekstas, pavyzdžiui užšifruotas žodis)
         <input id="nr" type="text" spellcheck="false">
       </label>
@@ -252,7 +256,7 @@ button.mini { padding: 5px 10px; font-size: 11px; }
   <canvas id="rain" aria-hidden="true"></canvas>
   <div class="hk-box">
     <h2 id="hk">Prieiga užblokuota</h2>
-    <p>Visi bandymai išnaudoti. Vaiduoklis.exe perėmė serverį. Pasikviesk mokytoją, kad atrakintų.</p>
+    <p id="hkmsg">Visi bandymai išnaudoti. Vaiduoklis.exe perėmė serverį. Pasikviesk mokytoją, kad atrakintų.</p>
     <form class="pw" id="hf" autocomplete="off">
       <label class="field"><span>#</span><input id="hin" type="password" placeholder="mokytojo slaptažodis" aria-label="Mokytojo slaptažodis" style="letter-spacing:.04em"></label>
       <button type="submit" class="ghost">Atrakinti</button>
@@ -265,6 +269,7 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 /* Mokytojo prieigos žodis laikomas base64 forma (nesvarbu didžiosios ar mažosios raidės). */
 var TEACHER = "S0FUSU5BUw==";
 var DEFAULTS = {
+  mins: "15",
   pw: "KAPAS",
   riddle: "NDSDV",
   instr: "Virusas paliko užšifruotą žinutę. Kiekviena raidė pastumta 3 vietomis į priekį abėcėlėje. Atšifruok žodį ir įrašyk jį kaip slaptažodį.",
@@ -319,7 +324,10 @@ function stopRain() {
   if (onResize) window.removeEventListener("resize", onResize);
   onResize = null;
 }
-function lockOut() {
+function lockOut(reason) {
+  $("hkmsg").textContent = reason === "time"
+    ? "Laikas baigėsi. Vaiduoklis.exe perėmė serverį. Pasikviesk mokytoją, kad atrakintų."
+    : "Visi bandymai išnaudoti. Vaiduoklis.exe perėmė serverį. Pasikviesk mokytoją, kad atrakintų.";
   $("pwin").disabled = true; $("go").disabled = true;
   $("hmsg").textContent = ""; $("hmsg").className = "msg";
   $("hin").value = "";
@@ -345,10 +353,40 @@ function saveCfg(obj) {
 
 var started = false, t0 = 0, timer = null, done = false;
 
+/* Laikmatis: 0 minučių reiškia be ribos (laikas eina į priekį), kitaip skaičiuojama atgal. */
+function limitMs() {
+  var n = parseInt(cfg.mins, 10);
+  if (isNaN(n) || n < 0) n = parseInt(DEFAULTS.mins, 10);
+  return n * 60000;
+}
+function showIdleClock() {
+  var lim = limitMs();
+  $("clock").textContent = lim > 0 ? fmt(lim) : "00:00";
+  $("clock").classList.remove("warn");
+}
+function tick() {
+  var el = Date.now() - t0, lim = limitMs();
+  if (lim <= 0) { $("clock").textContent = fmt(el); return; }
+  var left = lim - el;
+  if (left <= 0) {
+    $("clock").textContent = "00:00";
+    $("clock").classList.add("warn");
+    stopClock();
+    if (!done) {
+      $("msg").className = "msg bad";
+      $("msg").textContent = "LAIKAS BAIGĖSI.";
+      lockOut("time");
+    }
+    return;
+  }
+  $("clock").textContent = fmt(Math.ceil(left / 1000) * 1000);
+  $("clock").classList.toggle("warn", left <= 60000);
+}
 function startClock() {
   if (started) return;
   started = true; t0 = Date.now();
-  timer = setInterval(function () { $("clock").textContent = fmt(Date.now() - t0); }, 500);
+  tick();
+  timer = setInterval(tick, 250);
 }
 function stopClock() { clearInterval(timer); timer = null; }
 
@@ -361,7 +399,7 @@ function render() {
 function resetRun() {
   stopClock();
   started = false; done = false;
-  $("clock").textContent = "00:00";
+  showIdleClock();
   $("door").classList.remove("solved");
   $("state").textContent = "UŽRAKINTA";
   $("pwin").value = ""; $("pwin").disabled = false;
@@ -399,7 +437,8 @@ $("f").addEventListener("submit", function (e) {
     f.classList.remove("shake"); void f.offsetWidth; f.classList.add("shake");
     if (tries <= 0) {
       $("msg").textContent = "PRIEIGA UŽBLOKUOTA. Bandymai baigėsi.";
-      lockOut();
+      stopClock();
+      lockOut("tries");
     } else {
       $("msg").textContent = "PRIEIGA UŽDRAUSTA. Neteisingas slaptažodis. Liko " + tries + (tries === 1 ? " bandymas." : " bandymai.");
     }
@@ -419,6 +458,7 @@ document.addEventListener("keydown", startClock, { once: true });
 
 /* Teacher console */
 function openPanel() {
+  $("nm").value = cfg.mins;
   $("np").value = cfg.pw;
   $("nr").value = cfg.riddle;
   $("ni").value = cfg.instr;
@@ -442,13 +482,15 @@ $("tf").addEventListener("submit", function (e) {
 $("save").addEventListener("click", function () {
   var np = $("np").value.trim();
   if (np === "") { $("pmsg").className = "msg bad"; $("pmsg").textContent = "Mokinių slaptažodis negali būti tuščias."; return; }
-  var obj = { pw: np, riddle: $("nr").value.trim(), instr: $("ni").value.trim(), fin: $("nf").value.trim() };
+  var mins = parseInt($("nm").value, 10);
+  if (isNaN(mins) || mins < 0 || mins > 180) { $("pmsg").className = "msg bad"; $("pmsg").textContent = "Laikas turi būti skaičius nuo 0 iki 180 minučių."; return; }
+  var obj = { mins: String(mins), pw: np, riddle: $("nr").value.trim(), instr: $("ni").value.trim(), fin: $("nf").value.trim() };
   var ok = saveCfg(obj);
   loadCfg();
   resetRun();
   $("pmsg").className = ok ? "msg ok" : "msg bad";
   $("pmsg").textContent = ok ? "Išsaugota. Durys vėl užrakintos naujam bandymui." : "Šioje naršyklėje išsaugoti nepavyko. Pakeitimai veiks tik kol puslapis atidarytas.";
-  if (!ok) { cfg = { pw: obj.pw, riddle: obj.riddle || DEFAULTS.riddle, instr: obj.instr || DEFAULTS.instr, fin: obj.fin || DEFAULTS.fin }; resetRun(); }
+  if (!ok) { cfg = { mins: obj.mins, pw: obj.pw, riddle: obj.riddle || DEFAULTS.riddle, instr: obj.instr || DEFAULTS.instr, fin: obj.fin || DEFAULTS.fin }; resetRun(); }
 });
 $("restart").addEventListener("click", function () {
   resetRun();
@@ -486,6 +528,7 @@ $("logout").addEventListener("click", function () {
 loadCfg();
 render();
 renderTries();
+showIdleClock();
 </script>
 
 </body>
