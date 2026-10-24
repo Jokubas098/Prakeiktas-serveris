@@ -138,10 +138,15 @@ form.pw { display: flex; flex-wrap: wrap; gap: 10px; }
 
 /* Hakerio stiliaus šonai: pro šalis slenka kodas */
 .stage { flex: 1; display: grid; grid-template-columns: 130px minmax(0, 1fr) 130px; gap: 16px; align-items: stretch; }
-.side { position: relative; overflow: hidden; min-height: 240px; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent); }
-.side pre { margin: 0; font-size: 11px; line-height: 1.5; color: var(--cyan); opacity: .6; white-space: pre; animation: scrollup 40s linear infinite; }
+.side { position: relative; overflow: hidden; min-height: 0; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent); }
+.side pre { position: absolute; top: 0; left: 0; right: 0; margin: 0; font-size: 11px; line-height: 1.5; color: var(--cyan); opacity: .6; white-space: pre; animation: scrollup 40s linear infinite; }
 .side.r pre { color: var(--pumpkin); animation-direction: reverse; }
 @keyframes scrollup { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+
+/* Rašymo efektas: dar neparašytas tekstas užima vietą, bet nematomas */
+.rest { visibility: hidden; }
+.cur { display: inline-block; width: 0; overflow: visible; color: var(--cyan); animation: blink .7s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
 @media (max-width: 900px) {
   .stage { grid-template-columns: minmax(0, 1fr); }
   .side { display: none; }
@@ -527,10 +532,37 @@ function startClock(at) {
 }
 function stopClock() { clearInterval(timer); timer = null; }
 
+var typeTok = 0;
 function render() {
+  typeTok++;
   $("instr").textContent = cfg.instr;
   $("riddle").textContent = cfg.riddle;
   $("riddle").hidden = cfg.riddle.trim() === "";
+}
+function typeInto(el, text, cps, done) {
+  var tok = typeTok, i = 0;
+  (function step() {
+    if (tok !== typeTok) return;
+    el.textContent = text.slice(0, i);
+    if (i >= text.length) { if (done) done(); return; }
+    var c = document.createElement("span"); c.className = "cur"; c.textContent = "▌";
+    var r = document.createElement("span"); r.className = "rest"; r.textContent = text.slice(i);
+    el.appendChild(c); el.appendChild(r);
+    i++;
+    setTimeout(step, 1000 / cps);
+  })();
+}
+function playTyping() {
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) { render(); return; }
+  typeTok++;
+  var tok = typeTok, riddle = cfg.riddle;
+  $("riddle").textContent = "";
+  var hold = document.createElement("span"); hold.className = "rest"; hold.textContent = riddle;
+  $("riddle").appendChild(hold);
+  typeInto($("instr"), cfg.instr, 60, function () {
+    if (tok === typeTok && riddle) typeInto($("riddle"), riddle, 7, null);
+  });
 }
 
 function resetRun() {
@@ -587,6 +619,7 @@ $("hf").addEventListener("submit", function (e) {
     resetRun();
     closeTeacher();
     startClock();
+    playTyping();
     setTimeout(function () { $("pwin").focus(); }, 50);
   } else {
     $("hmsg").className = "msg bad";
@@ -634,6 +667,7 @@ function launch() {
   closeTeacher();
   window.scrollTo(0, 0);
   startClock();
+  playTyping();
   setTimeout(function () { if (!locked) $("pwin").focus(); }, 400);
 }
 function beginSession() {
@@ -649,6 +683,7 @@ function beginSession() {
   } else {
     $("lock").hidden = true;
     startClock();
+    playTyping();
   }
 }
 $("lkT").addEventListener("click", function () {
