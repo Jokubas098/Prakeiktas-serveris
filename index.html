@@ -424,7 +424,7 @@ button.mini { padding: 5px 10px; font-size: 11px; }
           <label><input type="checkbox" id="optpaste"> Neleisti įklijuoti į slaptažodžio lauką</label>
           <label><input type="checkbox" id="optleave"> Skaičiuoti, kai mokinys išeina iš lango ar skirtuko</label>
         </div>
-        <div class="row"><button type="button" class="ghost" id="newcode">Naujas kodas</button><button type="button" class="ghost" id="delcode">Ištrinti sesiją</button></div>
+        <div class="row"><button type="button" class="ghost" id="newcode">Naujas kodas</button><button type="button" class="ghost" id="delcode">Ištrinti sesiją</button><button type="button" class="ghost" id="rsall">Visiems iš naujo</button></div>
         <div class="row" style="flex-wrap:nowrap">
           <input id="bcast" type="text" placeholder="Žinutė visiems mokiniams" aria-label="Žinutė visiems" maxlength="300" style="flex:1;min-width:0">
           <button type="button" class="ghost" id="bcsend">Siųsti visiems</button>
@@ -896,7 +896,7 @@ function detectDb() {
 }
 var Sync = (function () {
   var JK = "prakeiktas-join-v1", TK = "prakeiktas-teacher-code-v1", OK = "prakeiktas-opts-v1", me = null, hb = null, tcode = "", poll = null, last = {};
-  var opts = {}, cntLeave = 0, cntFs = 0, wired = false, seenH = 0, seenB = 0, hpoll = null, hlock = false;
+  var opts = {}, cntLeave = 0, cntFs = 0, wired = false, seenH = 0, seenB = 0, seenR = 0, seenC = 0, hpoll = null, hlock = false;
   function url(p) { return DB_URL.replace(/\/+$/, "") + p + ".json"; }
   function req(method, p, body) {
     return fetch(url(p), { method: method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) })
@@ -911,11 +911,18 @@ var Sync = (function () {
     var n = 0;
     if (hpoll) clearInterval(hpoll);
     $("helpui").hidden = false;
-    if (!seenH) { seenH = Date.now(); seenB = seenH; }
+    if (!seenH) { seenH = Date.now(); seenB = seenH; seenR = seenH; }
     hpoll = setInterval(function () {
       if (!me) return;
       req("GET", base() + "/help").then(function (h) { if (h && h.ts > seenH) { seenH = h.ts; showHelp(h.text); } }).catch(function () {});
-      req("GET", "/sessions/" + me.code + "/meta/broadcast").then(function (h) { if (h && h.ts > seenB) { seenB = h.ts; showHelp(h.text); } }).catch(function () {});
+      req("GET", "/sessions/" + me.code + "/meta").then(function (m) {
+        if (!m) return;
+        if (m.opts) opts = m.opts;
+        if (m.broadcast && m.broadcast.ts > seenB) { seenB = m.broadcast.ts; showHelp(m.broadcast.text); }
+        applyCfg(m, false);
+        if (m.restartAll && m.restartAll > seenR) { seenR = m.restartAll; beginSession(); }
+      }).catch(function () {});
+      req("GET", base() + "/restart").then(function (t) { if (t && t > seenR) { seenR = t; beginSession(); } }).catch(function () {});
     }, 3000);
     hb = setInterval(function () {
       patch({});
@@ -931,6 +938,7 @@ var Sync = (function () {
     return req("GET", "/sessions/" + encodeURIComponent(code) + "/meta").then(function (m) {
       if (!m) throw "nocode";
       applyOpts(m.opts);
+      applyCfg(m, true);
       me = { code: code, nick: nick, id: rid() };
       try { sessionStorage.setItem(JK, JSON.stringify(me)); } catch (e) {}
       patch({ nick: nick, joinedAt: Date.now() });
@@ -939,9 +947,24 @@ var Sync = (function () {
     });
   }
   function resume() {
-    try { var o = JSON.parse(sessionStorage.getItem(JK) || "null"); if (o && o.code && o.id) { me = o; beat(); req("GET", "/sessions/" + o.code + "/meta").then(function (m) { applyOpts(m && m.opts); setTimeout(checkFs, 300); }).catch(function () {}); return true; } } catch (e) {}
+    try { var o = JSON.parse(sessionStorage.getItem(JK) || "null"); if (o && o.code && o.id) { me = o; beat(); req("GET", "/sessions/" + o.code + "/meta").then(function (m) { applyOpts(m && m.opts); applyCfg(m, false); setTimeout(checkFs, 300); }).catch(function () {}); return true; } } catch (e) {}
     return false;
   }
+  function applyCfg(m, first) {
+    var c = m && m.cfg;
+    if (!c || !m.cfgTs || m.cfgTs <= seenC) return;
+    seenC = m.cfgTs;
+    cfg = { delay: String(c.delay != null ? c.delay : DEFAULTS.delay), mins: String(c.mins != null ? c.mins : DEFAULTS.mins), pw: c.pw || DEFAULTS.pw, riddle: c.riddle || DEFAULTS.riddle, instr: c.instr || DEFAULTS.instr, fin: c.fin || DEFAULTS.fin };
+    if (!first) { render(); }
+  }
+  function pushCfg(o) {
+    if (!DB_URL || !tcode) return false;
+    req("PATCH", "/sessions/" + tcode + "/meta", { cfg: o, cfgTs: Date.now() }).catch(function () {});
+    return true;
+  }
+  function restartOne(id) { if (tcode) req("PUT", "/sessions/" + tcode + "/students/" + id + "/restart", Date.now()).catch(function () {}); }
+  function restartAllSt() { if (tcode) req("PATCH", "/sessions/" + tcode + "/meta", { restartAll: Date.now() }).catch(function () {}); }
+  function hasCode() { return !!(DB_URL && tcode); }
   function showHelp(t) {
     $("helpmsg").textContent = t || "";
     $("helpbox").hidden = false;
@@ -969,6 +992,7 @@ var Sync = (function () {
   $("helpbtn").addEventListener("click", askHelp);
   $("helpok").addEventListener("click", function () { $("helpbox").hidden = true; });
   $("bcsend").addEventListener("click", sendAll);
+  $("rsall").addEventListener("click", restartAllSt);
   /* Mokinio parinktys */
   function isFs() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
   function reqFs() {
@@ -1045,7 +1069,11 @@ var Sync = (function () {
     ids.forEach(function (id) {
       var s = last[id], r = el("tr");
       var alive = s.lastSeen && now - s.lastSeen < 20000;
-      r.appendChild(el("td", (s.nick || "?") + (alive ? "" : " (ryšys nutrūko)")));
+      var nc = el("td", (s.nick || "?") + (alive ? "" : " (ryšys nutrūko)"));
+      var rb = el("button", "Iš naujo"); rb.type = "button"; rb.className = "ghost"; rb.style.display = "block";
+      rb.addEventListener("click", function () { restartOne(id); });
+      nc.appendChild(rb);
+      r.appendChild(nc);
       r.appendChild(el("td", LAB[s.status] || "-", s.status === "solved" ? "sok" : (s.status === "tries" || s.status === "time" ? "sbad" : "")));
       var left = "-";
       if (s.limitMs === 0) left = "be ribos";
@@ -1092,7 +1120,7 @@ var Sync = (function () {
   function newCode() {
     if (!DB_URL) return;
     var c = gen();
-    req("PUT", "/sessions/" + c + "/meta", { created: Date.now(), opts: readOpts() }).then(function () {
+    req("PUT", "/sessions/" + c + "/meta", { created: Date.now(), opts: readOpts(), cfg: cfg, cfgTs: Date.now() }).then(function () {
       tcode = c; last = {};
       try { localStorage.setItem(TK, c); } catch (e) {}
       renderLive();
@@ -1105,7 +1133,7 @@ var Sync = (function () {
     try { localStorage.removeItem(TK); } catch (e) {}
     renderLive();
   }
-  return { patch: patch, attempt: attempt, reset: reset, join: join, resume: resume, tstart: tstart, newCode: newCode, delCode: delCode };
+  return { pushCfg: pushCfg, hasCode: hasCode, restartAllSt: restartAllSt, patch: patch, attempt: attempt, reset: reset, join: join, resume: resume, tstart: tstart, newCode: newCode, delCode: delCode };
 })();
 
 /* Teacher console */
@@ -1149,7 +1177,8 @@ $("save").addEventListener("click", function () {
   loadCfg();
   resetRun();
   $("pmsg").className = ok ? "msg ok" : "msg bad";
-  $("pmsg").textContent = ok ? "Išsaugota. Paspausk „Pradėti iš naujo“, kad paleistum visą eigą su naujais nustatymais." : "Šioje naršyklėje išsaugoti nepavyko. Pakeitimai veiks tik kol puslapis atidarytas.";
+  var sent = Sync.pushCfg(obj);
+  $("pmsg").textContent = ok ? (sent ? "Išsaugota ir išsiųsta prisijungusiems mokiniams. Slaptažodis, laikas ir tekstai pasikeis jiems iškart, o laikas iki paleidimo galios po „Visiems iš naujo“." : "Išsaugota. Paspausk „Pradėti iš naujo“, kad paleistum visą eigą su naujais nustatymais.") : "Šioje naršyklėje išsaugoti nepavyko. Pakeitimai veiks tik kol puslapis atidarytas.";
   if (!ok) { cfg = { delay: obj.delay, mins: obj.mins, pw: obj.pw, riddle: obj.riddle || DEFAULTS.riddle, instr: obj.instr || DEFAULTS.instr, fin: obj.fin || DEFAULTS.fin }; resetRun(); }
 });
 $("restart").addEventListener("click", function () {
