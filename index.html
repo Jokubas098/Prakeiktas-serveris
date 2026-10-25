@@ -194,6 +194,14 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 /* Teacher console */
 .teacher { border-top: 1px dashed var(--line); padding-top: 18px; display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
 .teacher.over { position: fixed; inset: 0; z-index: 150; width: 100%; max-width: none; margin: 0; background: var(--void); overflow-y: auto; padding: 24px max(16px, calc((100vw - 760px) / 2)); }
+.stats { border: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.stats table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.stats th, .stats td { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.stats th { color: var(--dim); font-weight: 600; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.stats .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 14px; }
+.stats .kv span:nth-child(odd) { color: var(--dim); }
+.stats .sok { color: var(--cyan); }
+.stats .sbad { color: var(--blood); }
 .teacher h3 { margin: 0; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
 .teacher .field input { text-transform: none; letter-spacing: .04em; }
 .panel { border: 1px solid var(--pumpkin); padding: 16px; display: flex; flex-direction: column; gap: 14px; background: var(--panel); }
@@ -362,6 +370,11 @@ button.mini { padding: 5px 10px; font-size: 11px; }
       <label for="nf">Žinutė, kai durys atsidaro
         <textarea id="nf" rows="3"></textarea>
       </label>
+      <div class="stats">
+        <h3>Mokinio stebėjimas (šiame kompiuteryje)</h3>
+        <div id="stats"></div>
+        <div class="row"><button type="button" class="ghost" id="clrstats">Išvalyti statistiką</button></div>
+      </div>
       <div class="row">
         <button type="button" id="save">Išsaugoti</button>
         <button type="button" class="ghost" id="restart">Pradėti iš naujo</button>
@@ -491,8 +504,7 @@ $("gf").addEventListener("submit", function (e) {
   }
   var m = gateMode;
   closeGate();
-  if (m === "restart") { beginSession(); }
-  else if (m === "teacher") {
+  if (m === "teacher" || m === "restart") {
     if (locked) {
       stopLockTimer(); locked = false;
       $("lock").hidden = true; $("lock").classList.remove("fade");
@@ -522,6 +534,84 @@ function saveCfg(obj) {
 }
 
 var started = false, t0 = 0, timer = null, done = false;
+/* Mokinio statistika: saugoma šiame įrenginyje */
+var Stats = (function () {
+  var SK = "prakeiktas-serveris-stats-v1", cur = null, hist = [], live = null;
+  try { var o = JSON.parse(localStorage.getItem(SK) || "null"); if (o) { hist = o.hist || []; cur = o.cur || null; } } catch (e) {}
+  function save() { try { localStorage.setItem(SK, JSON.stringify({ cur: cur, hist: hist })); } catch (e) {} }
+  function blank() { return { att: [], startedAt: 0, end: "", endedAt: 0, elapsed: 0 }; }
+  function newRun() {
+    if (cur && (cur.att.length || cur.startedAt)) { hist.unshift(cur); hist = hist.slice(0, 15); }
+    cur = blank(); save();
+  }
+  function start() { if (cur && !cur.startedAt) { cur.startedAt = Date.now(); save(); } }
+  function attempt(v, ok) { if (!cur) return; cur.att.push({ at: Date.now() - t0, v: String(v).slice(0, 40), ok: ok }); save(); }
+  function end(r) { if (cur && !cur.end) { cur.end = r; cur.endedAt = Date.now(); cur.elapsed = cur.startedAt ? Date.now() - t0 : 0; save(); } }
+  var LABEL = { solved: "Atrakino", tries: "Užblokuota (bandymai baigėsi)", time: "Laikas baigėsi" };
+  function status(c) { return c.end ? LABEL[c.end] : (locked ? "Užrakintas ekranas" : (started ? "Žaidžia" : "Laukia")); }
+  function clk(ms) { try { return new Date(ms).toLocaleTimeString("lt-LT"); } catch (e) { return ""; } }
+  function el(tag, txt, cls) { var n = document.createElement(tag); if (txt != null) n.textContent = txt; if (cls) n.className = cls; return n; }
+  function left(c) {
+    var lim = limitMs();
+    if (lim <= 0) return "be laiko ribos";
+    var used = c.end ? c.elapsed : (started ? Date.now() - t0 : 0);
+    return fmt(Math.max(0, lim - used));
+  }
+  function render() {
+    var box = $("stats"); if (!box) return;
+    box.textContent = "";
+    if (!cur) cur = blank();
+    var kv = el("div", null, "kv");
+    var rows = [
+      ["Būsena", status(cur)],
+      ["Liko laiko", left(cur)],
+      ["Liko bandymų", cur.end === "solved" ? String(tries) : String(tries) + " iš " + MAX_TRIES],
+      ["Pradėjo", cur.startedAt ? clk(cur.startedAt) : "dar nepradėjo"]
+    ];
+    if (cur.end) rows.push(["Baigė", clk(cur.endedAt) + " (praėjo " + fmt(cur.elapsed) + ")"]);
+    rows.forEach(function (r) { kv.appendChild(el("span", r[0])); kv.appendChild(el("span", r[1], r[0] === "Būsena" && cur.end === "solved" ? "sok" : (r[0] === "Būsena" && cur.end ? "sbad" : ""))); });
+    box.appendChild(kv);
+    box.appendChild(el("div", "Įvesti slaptažodžiai", "note"));
+    if (!cur.att.length) { box.appendChild(el("div", "Dar nieko neįvedė.", "note")); }
+    else {
+      var t = el("table"), h = el("tr");
+      ["#", "Po", "Įvedė", ""].forEach(function (x) { h.appendChild(el("th", x)); });
+      t.appendChild(h);
+      cur.att.forEach(function (a, i) {
+        var r = el("tr");
+        r.appendChild(el("td", String(i + 1)));
+        r.appendChild(el("td", fmt(a.at)));
+        r.appendChild(el("td", a.v));
+        r.appendChild(el("td", a.ok ? "teisingas" : "klaida", a.ok ? "sok" : "sbad"));
+        t.appendChild(r);
+      });
+      box.appendChild(t);
+    }
+    if (hist.length) {
+      box.appendChild(el("div", "Ankstesni bandymai", "note"));
+      var t2 = el("table"), h2 = el("tr");
+      ["Pradėta", "Rezultatas", "Bandymų", "Laikas"].forEach(function (x) { h2.appendChild(el("th", x)); });
+      t2.appendChild(h2);
+      hist.forEach(function (c) {
+        var r = el("tr");
+        r.appendChild(el("td", c.startedAt ? clk(c.startedAt) : "-"));
+        r.appendChild(el("td", c.end ? LABEL[c.end] : "nebaigta", c.end === "solved" ? "sok" : "sbad"));
+        r.appendChild(el("td", String(c.att.length)));
+        r.appendChild(el("td", c.end ? fmt(c.elapsed) : "-"));
+        t2.appendChild(r);
+      });
+      box.appendChild(t2);
+    }
+  }
+  function watch() {
+    if (live) return;
+    live = setInterval(function () { if ($("panel").hidden || $("teacher").hidden) return; render(); }, 1000);
+  }
+  function clear() { cur = blank(); hist = []; save(); render(); }
+  watch();
+  return { newRun: newRun, start: start, attempt: attempt, end: end, render: render, clear: clear };
+})();
+
 
 /* Laikmatis: 0 minučių reiškia be ribos (laikas eina į priekį), kitaip skaičiuojama atgal. */
 function limitMs() {
@@ -552,6 +642,7 @@ function tick() {
     setMeter(0);
     stopClock();
     if (!done) {
+      Stats.end("time");
       $("msg").className = "msg bad";
       $("msg").textContent = "LAIKAS BAIGĖSI.";
       lockOut("time");
@@ -566,6 +657,7 @@ function tick() {
 function startClock(at) {
   if (started || locked) return;
   started = true; t0 = (typeof at === "number") ? at : Date.now();
+  Stats.start();
   tick();
   timer = setInterval(tick, 250);
 }
@@ -605,6 +697,7 @@ function playTyping() {
 }
 
 function resetRun() {
+  Stats.newRun();
   stopClock();
   started = false; done = false;
   showIdleClock();
@@ -625,8 +718,9 @@ $("f").addEventListener("submit", function (e) {
   e.preventDefault();
   if (done) return;
   startClock();
-  var f = $("f");
+  var f = $("f"), typed = $("pwin").value.trim();
   if (norm($("pwin").value) === norm(cfg.pw)) {
+    Stats.attempt(typed, true); Stats.end("solved");
     done = true;
     stopClock();
     $("door").classList.add("solved");
@@ -639,6 +733,7 @@ $("f").addEventListener("submit", function (e) {
     $("final").hidden = false;
     setTimeout(function () { $("final").scrollIntoView({ behavior: "smooth", block: "start" }); }, 500);
   } else {
+    Stats.attempt(typed, false);
     tries--;
     renderTries();
     $("msg").className = "msg bad";
@@ -646,6 +741,7 @@ $("f").addEventListener("submit", function (e) {
     if (tries <= 0) {
       $("msg").textContent = "PRIEIGA UŽBLOKUOTA. Bandymai baigėsi.";
       stopClock();
+      Stats.end("tries");
       lockOut("tries");
     } else {
       $("msg").textContent = "PRIEIGA UŽDRAUSTA. Neteisingas slaptažodis. Liko " + tries + (tries === 1 ? " bandymas." : " bandymai.");
@@ -723,7 +819,9 @@ function openPanel() {
   $("nf").value = cfg.fin;
   $("panel").hidden = false;
   $("pmsg").textContent = ""; $("pmsg").className = "msg";
+  Stats.render();
 }
+$("clrstats").addEventListener("click", function () { Stats.clear(); });
 $("tf").addEventListener("submit", function (e) {
   e.preventDefault();
   var ok = isTeacher($("tin").value);
