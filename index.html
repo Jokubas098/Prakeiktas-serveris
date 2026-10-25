@@ -193,7 +193,13 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 
 /* Teacher console */
 .teacher { border-top: 1px dashed var(--line); padding-top: 18px; display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
-.teacher.over { position: fixed; inset: 0; z-index: 150; width: 100%; max-width: none; margin: 0; background: var(--void); overflow-y: auto; padding: 24px max(16px, calc((100vw - 760px) / 2)); }
+.teacher.over { position: fixed; inset: 0; z-index: 195; width: 100%; max-width: none; margin: 0; background: var(--void); overflow-y: auto; padding: 24px max(16px, calc((100vw - 760px) / 2)); }
+.join { position: fixed; inset: 0; z-index: 190; background: var(--void); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.join-box { width: 100%; max-width: 400px; border: 1px solid var(--cyan); box-shadow: 0 0 30px rgba(34,240,208,.25); padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+.join-box h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 34px; color: var(--pumpkin); }
+.join-box form { display: flex; flex-direction: column; gap: 10px; }
+.join-box input { text-transform: none; }
+.live-code { font-size: 34px; font-weight: 800; letter-spacing: .3em; color: var(--cyan); }
 .stats { border: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .stats table { border-collapse: collapse; width: 100%; font-size: 13px; }
 .stats th, .stats td { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
@@ -287,6 +293,18 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 </head>
 <body>
 
+<div class="join" id="join" hidden role="dialog" aria-labelledby="jt">
+  <div class="tr" id="tr3" aria-hidden="true"></div>
+  <div class="join-box">
+    <h2 id="jt">Prisijunk</h2>
+    <form id="jf" autocomplete="off">
+      <label class="field"><span>#</span><input id="jcode" type="text" placeholder="pamokos kodas" aria-label="Pamokos kodas" maxlength="8" autocapitalize="characters"></label>
+      <label class="field"><span>@</span><input id="jnick" type="text" placeholder="slapyvardis" aria-label="Slapyvardis" maxlength="20"></label>
+      <button type="submit">Prisijungti</button>
+    </form>
+    <div class="msg" id="jmsg" role="status"></div>
+  </div>
+</div>
 <div class="gate" id="gate" hidden role="dialog" aria-labelledby="gt">
   <div class="gate-box">
     <h3 id="gt">&#128274; Įvesk slaptažodį</h3>
@@ -370,8 +388,14 @@ button.mini { padding: 5px 10px; font-size: 11px; }
       <label for="nf">Žinutė, kai durys atsidaro
         <textarea id="nf" rows="3"></textarea>
       </label>
+      <div class="stats" id="live">
+        <h3>Mokinių stebėjimas realiu laiku</h3>
+        <div id="livehead"></div>
+        <div class="row"><button type="button" class="ghost" id="newcode">Naujas kodas</button><button type="button" class="ghost" id="delcode">Ištrinti sesiją</button></div>
+        <div id="livetbl"></div>
+      </div>
       <div class="stats">
-        <h3>Mokinio stebėjimas (šiame kompiuteryje)</h3>
+        <h3>Šio kompiuterio statistika</h3>
         <div id="stats"></div>
         <div class="row"><button type="button" class="ghost" id="clrstats">Išvalyti statistiką</button></div>
       </div>
@@ -517,6 +541,7 @@ $("gf").addEventListener("submit", function (e) {
   }
 });
 $("tr2").addEventListener("dblclick", function () { openGate("teacher"); });
+$("tr3").addEventListener("dblclick", function () { openGate("teacher"); });
 function fmt(ms) {
   var s = Math.floor(ms / 1000), m = Math.floor(s / 60);
   return (m < 10 ? "0" : "") + m + ":" + (s % 60 < 10 ? "0" : "") + (s % 60);
@@ -543,10 +568,11 @@ var Stats = (function () {
   function newRun() {
     if (cur && (cur.att.length || cur.startedAt)) { hist.unshift(cur); hist = hist.slice(0, 15); }
     cur = blank(); save();
+    if (typeof Sync !== "undefined") Sync.reset();
   }
-  function start() { if (cur && !cur.startedAt) { cur.startedAt = Date.now(); save(); } }
-  function attempt(v, ok) { if (!cur) return; cur.att.push({ at: Date.now() - t0, v: String(v).slice(0, 40), ok: ok }); save(); }
-  function end(r) { if (cur && !cur.end) { cur.end = r; cur.endedAt = Date.now(); cur.elapsed = cur.startedAt ? Date.now() - t0 : 0; save(); } }
+  function start() { if (cur && !cur.startedAt) { cur.startedAt = Date.now(); save(); var lm = limitMs(); Sync.patch({ status: "playing", startedAt: cur.startedAt, launchedAt: cur.startedAt, limitMs: lm, deadline: lm > 0 ? cur.startedAt + lm : 0, tries: tries }); } }
+  function attempt(v, ok) { if (!cur) return; cur.att.push({ at: Date.now() - t0, v: String(v).slice(0, 40), ok: ok }); save(); Sync.attempt({ ts: Date.now(), v: String(v).slice(0, 40), ok: ok }); Sync.patch({ tries: ok ? tries : tries - 1 }); }
+  function end(r) { if (cur && !cur.end) { cur.end = r; cur.endedAt = Date.now(); cur.elapsed = cur.startedAt ? Date.now() - t0 : 0; save(); Sync.patch({ status: r, endedAt: cur.endedAt, elapsed: cur.elapsed, unlockedAt: r === "solved" ? cur.endedAt : null }); } }
   var LABEL = { solved: "Atrakino", tries: "Užblokuota (bandymai baigėsi)", time: "Laikas baigėsi" };
   function status(c) { return c.end ? LABEL[c.end] : (locked ? "Užrakintas ekranas" : (started ? "Žaidžia" : "Laukia")); }
   function clk(ms) { try { return new Date(ms).toLocaleTimeString("lt-LT"); } catch (e) { return ""; } }
@@ -774,6 +800,7 @@ function showLock(ms) {
   l.hidden = false;
   locked = true;
   lockEnd = Date.now() + ms;
+  Sync.patch({ status: "locked", lockEnd: lockEnd });
   paintLock();
   stopLockTimer();
   lockTimer = setInterval(lockTick, 250);
@@ -809,6 +836,111 @@ function beginSession() {
 }
 $("lkW").addEventListener("dblclick", function () { openGate("teacher"); });
 
+/* Stebėjimas realiu laiku per Firebase Realtime Database (REST) */
+var DB_URL = ""; /* įrašyk Firebase adresą, pvz. https://xxx-default-rtdb.europe-west1.firebasedatabase.app */
+var Sync = (function () {
+  var JK = "prakeiktas-join-v1", TK = "prakeiktas-teacher-code-v1", me = null, hb = null, tcode = "", poll = null, last = {};
+  function url(p) { return DB_URL.replace(/\/+$/, "") + p + ".json"; }
+  function req(method, p, body) {
+    return fetch(url(p), { method: method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); });
+  }
+  function rid() { var a = new Uint8Array(5); crypto.getRandomValues(a); return Array.prototype.map.call(a, function (x) { return (x % 36).toString(36); }).join(""); }
+  function base() { return "/sessions/" + me.code + "/students/" + me.id; }
+  function patch(o) { if (!me || !DB_URL) return; o.lastSeen = Date.now(); req("PATCH", base(), o).catch(function () {}); }
+  function attempt(a) { if (!me || !DB_URL) return; req("POST", base() + "/attempts", a).catch(function () {}); }
+  function beat() { if (hb) clearInterval(hb); hb = setInterval(function () { patch({}); }, 5000); }
+  function reset() {
+    patch({ status: "joined", attempts: null, startedAt: null, launchedAt: null, unlockedAt: null, endedAt: null, deadline: null, limitMs: null, lockEnd: null, elapsed: null, tries: MAX_TRIES });
+  }
+  function join(code, nick) {
+    code = code.trim().toUpperCase();
+    return req("GET", "/sessions/" + encodeURIComponent(code) + "/meta").then(function (m) {
+      if (!m) throw "nocode";
+      me = { code: code, nick: nick, id: rid() };
+      try { sessionStorage.setItem(JK, JSON.stringify(me)); } catch (e) {}
+      patch({ nick: nick, joinedAt: Date.now() });
+      reset(); beat();
+    });
+  }
+  function resume() {
+    try { var o = JSON.parse(sessionStorage.getItem(JK) || "null"); if (o && o.code && o.id) { me = o; beat(); return true; } } catch (e) {}
+    return false;
+  }
+  function gen() {
+    var al = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", a = new Uint8Array(6), r = "";
+    crypto.getRandomValues(a);
+    for (var i = 0; i < 6; i++) r += al[a[i] % al.length];
+    return r;
+  }
+  function el(tag, txt, cls) { var n = document.createElement(tag); if (txt != null) n.textContent = txt; if (cls) n.className = cls; return n; }
+  function tm(ms) { try { return new Date(ms).toLocaleTimeString("lt-LT"); } catch (e) { return ""; } }
+  var LAB = { joined: "Prisijungė", locked: "Užrakintas ekranas", playing: "Žaidžia", solved: "ATRAKINO", tries: "Užblokuotas (bandymai)", time: "Laikas baigėsi" };
+  function renderLive() {
+    var head = $("livehead"), tbl = $("livetbl");
+    if (!head) return;
+    head.textContent = "";
+    if (!DB_URL) { head.appendChild(el("div", "Firebase dar neprijungtas. Čia matysis mokiniai, kai bus įrašytas duomenų bazės adresas.", "note")); tbl.textContent = ""; return; }
+    if (!tcode) { head.appendChild(el("div", "Paspausk „Naujas kodas“ ir pasakyk jį mokiniams.", "note")); tbl.textContent = ""; return; }
+    head.appendChild(el("div", "Pamokos kodas", "note"));
+    head.appendChild(el("div", tcode, "live-code"));
+    tbl.textContent = "";
+    var ids = Object.keys(last).sort(function (a, b) { return String(last[a].nick || "").localeCompare(String(last[b].nick || "")); });
+    if (!ids.length) { tbl.appendChild(el("div", "Kol kas niekas neprisijungė.", "note")); return; }
+    var t = el("table"), h = el("tr");
+    ["Mokinys", "Būsena", "Liko laiko", "Bandymai", "Atrakino", "Įvesti slaptažodžiai"].forEach(function (x) { h.appendChild(el("th", x)); });
+    t.appendChild(h);
+    var now = Date.now();
+    ids.forEach(function (id) {
+      var s = last[id], r = el("tr");
+      var alive = s.lastSeen && now - s.lastSeen < 20000;
+      r.appendChild(el("td", (s.nick || "?") + (alive ? "" : " (ryšys nutrūko)")));
+      r.appendChild(el("td", LAB[s.status] || "-", s.status === "solved" ? "sok" : (s.status === "tries" || s.status === "time" ? "sbad" : "")));
+      var left = "-";
+      if (s.limitMs === 0) left = "be ribos";
+      else if (s.status === "playing" && s.deadline) left = fmt(Math.max(0, s.deadline - now));
+      else if (s.limitMs && s.elapsed != null) left = fmt(Math.max(0, s.limitMs - s.elapsed));
+      else if (s.limitMs) left = fmt(s.limitMs);
+      r.appendChild(el("td", left));
+      r.appendChild(el("td", (s.tries != null ? s.tries : MAX_TRIES) + " iš " + MAX_TRIES));
+      r.appendChild(el("td", s.unlockedAt ? tm(s.unlockedAt) + " (po " + fmt(s.elapsed || 0) + ")" : "-", s.unlockedAt ? "sok" : ""));
+      var at = s.attempts ? Object.keys(s.attempts).map(function (k) { return s.attempts[k]; }).sort(function (a, b) { return a.ts - b.ts; }) : [];
+      var td = el("td");
+      if (!at.length) td.textContent = "-";
+      at.forEach(function (a) { td.appendChild(el("div", tm(a.ts) + "  " + a.v + (a.ok ? "  ✓" : "  ✗"), a.ok ? "sok" : "sbad")); });
+      r.appendChild(td);
+      t.appendChild(r);
+    });
+    tbl.appendChild(t);
+  }
+  function tpoll() {
+    if (!DB_URL || !tcode) { renderLive(); return; }
+    req("GET", "/sessions/" + tcode + "/students").then(function (d) { last = d || {}; renderLive(); }).catch(function () {});
+  }
+  function tstart() {
+    try { tcode = localStorage.getItem(TK) || ""; } catch (e) { tcode = ""; }
+    renderLive(); tpoll();
+    if (!poll) poll = setInterval(function () { if ($("panel").hidden || $("teacher").hidden) return; tpoll(); }, 2000);
+  }
+  function newCode() {
+    if (!DB_URL) return;
+    var c = gen();
+    req("PUT", "/sessions/" + c + "/meta", { created: Date.now() }).then(function () {
+      tcode = c; last = {};
+      try { localStorage.setItem(TK, c); } catch (e) {}
+      renderLive();
+    }).catch(function () { $("livehead").textContent = "Nepavyko sukurti kodo. Patikrink interneto ryšį ir Firebase taisykles."; });
+  }
+  function delCode() {
+    if (!DB_URL || !tcode) return;
+    req("DELETE", "/sessions/" + tcode).catch(function () {});
+    tcode = ""; last = {};
+    try { localStorage.removeItem(TK); } catch (e) {}
+    renderLive();
+  }
+  return { patch: patch, attempt: attempt, reset: reset, join: join, resume: resume, tstart: tstart, newCode: newCode, delCode: delCode };
+})();
+
 /* Teacher console */
 function openPanel() {
   $("nd").value = cfg.delay;
@@ -820,7 +952,10 @@ function openPanel() {
   $("panel").hidden = false;
   $("pmsg").textContent = ""; $("pmsg").className = "msg";
   Stats.render();
+  Sync.tstart();
 }
+$("newcode").addEventListener("click", function () { Sync.newCode(); });
+$("delcode").addEventListener("click", function () { Sync.delCode(); });
 $("clrstats").addEventListener("click", function () { Stats.clear(); });
 $("tf").addEventListener("submit", function (e) {
   e.preventDefault();
@@ -926,7 +1061,21 @@ $("skull").addEventListener("click", function () {
 
 loadCfg();
 render();
-beginSession();
+$("jf").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var code = $("jcode").value.trim(), nick = $("jnick").value.trim();
+  if (!code || !nick) { $("jmsg").className = "msg bad"; $("jmsg").textContent = "Įvesk kodą ir slapyvardį."; return; }
+  $("jmsg").className = "msg"; $("jmsg").textContent = "Jungiamasi...";
+  Sync.join(code, nick).then(function () {
+    $("join").hidden = true;
+    beginSession();
+  }).catch(function (err) {
+    $("jmsg").className = "msg bad";
+    $("jmsg").textContent = err === "nocode" ? "Tokio kodo nėra." : "Nepavyko prisijungti. Patikrink ryšį.";
+  });
+});
+if (DB_URL && !Sync.resume()) { $("join").hidden = false; setTimeout(function () { $("jcode").focus(); }, 100); }
+else { beginSession(); }
 </script>
 
 </body>
