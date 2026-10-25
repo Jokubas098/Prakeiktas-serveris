@@ -404,7 +404,7 @@ button.mini { padding: 5px 10px; font-size: 11px; }
         <h3>Mokinių stebėjimas realiu laiku</h3>
         <div id="livehead"></div>
         <div class="opts" id="opts">
-          <label><input type="checkbox" id="optfs"> Mokinys gauna pilną ekraną (grįžti reikia paspaudus mygtuką)</label>
+          <label><input type="checkbox" id="optfs"> Užrakinti pilname ekrane (Esc užrakinamas, uždaryti ar perkrauti puslapį sunku, išėjus uždengiama)</label>
           <label><input type="checkbox" id="optctx"> Neleisti dešiniojo pelės mygtuko</label>
           <label><input type="checkbox" id="optpaste"> Neleisti įklijuoti į slaptažodžio lauką</label>
           <label><input type="checkbox" id="optleave"> Skaičiuoti, kai mokinys išeina iš lango ar skirtuko</label>
@@ -919,7 +919,10 @@ var Sync = (function () {
   function isFs() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
   function reqFs() {
     var e = document.documentElement, f = e.requestFullscreen || e.webkitRequestFullscreen;
-    try { var p = f && f.call(e); if (p && p.catch) p.catch(function () {}); } catch (x) {}
+    try {
+      var p = f && f.call(e);
+      if (p && p.then) p.then(function () { try { if (navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock(["Escape", "F11", "F5"]).catch(function () {}); } catch (z) {} }).catch(function () {});
+    } catch (x) {}
   }
   function checkFs() { if (me && opts.fs && !isFs()) $("fsreq").hidden = false; }
   function applyOpts(o) {
@@ -935,6 +938,14 @@ var Sync = (function () {
       if (isFs()) { $("fsreq").hidden = true; return; }
       if (me && opts.fs) { cntFs++; patch({ fsExits: cntFs }); $("fsreq").hidden = false; }
     }
+    window.addEventListener("beforeunload", function (e) {
+      if (me && opts.fs && !done) { e.preventDefault(); e.returnValue = ""; return ""; }
+    });
+    document.addEventListener("keydown", function (e) {
+      if (!(me && opts.fs)) return;
+      var k = e.key, c = e.ctrlKey || e.metaKey;
+      if (k === "F5" || k === "F11" || k === "F12" || (c && /^[rwtnu]$/i.test(k)) || (c && e.shiftKey && /^[ijcn]$/i.test(k)) || (e.altKey && k === "F4")) e.preventDefault();
+    }, true);
     document.addEventListener("fullscreenchange", fsch);
     document.addEventListener("webkitfullscreenchange", fsch);
     $("fsback").addEventListener("click", function () { reqFs(); setTimeout(function () { if (isFs()) $("fsreq").hidden = true; }, 300); });
