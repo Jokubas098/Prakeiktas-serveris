@@ -199,6 +199,13 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 .join-box h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 34px; color: var(--pumpkin); }
 .join-box form { display: flex; flex-direction: column; gap: 10px; }
 .join-box input { text-transform: none; }
+.helpui { position: fixed; left: 12px; bottom: 12px; z-index: 80; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; max-width: min(360px, calc(100vw - 24px)); }
+.helpui .hbtn { padding: 8px 14px; font-size: 13px; }
+.helpbox { background: var(--void); border: 1px solid var(--pumpkin); box-shadow: 0 0 24px rgba(255,122,26,.35); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; animation: flick 3s steps(1) 1; }
+.helpbox b { color: var(--pumpkin); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+.helpbox p { margin: 0; font-size: 15px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.stats td input[type=text] { width: 100%; min-width: 140px; padding: 6px 8px; font-size: 13px; }
+.stats td button { padding: 4px 10px; font-size: 12px; margin-top: 4px; }
 .fsreq { position: fixed; inset: 0; z-index: 185; background: rgba(0,0,0,.92); display: flex; align-items: center; justify-content: center; padding: 16px; text-align: center; }
 .fsreq .box { max-width: 420px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
 .opts { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
@@ -298,6 +305,14 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 </head>
 <body>
 
+<div class="helpui" id="helpui" hidden>
+  <div class="helpbox" id="helpbox" hidden role="status">
+    <b>Pagalba nuo mokytojo</b>
+    <p id="helpmsg"></p>
+    <button type="button" class="ghost hbtn" id="helpok">Gerai</button>
+  </div>
+  <button type="button" class="ghost hbtn" id="helpbtn">Pagalba</button>
+</div>
 <div class="fsreq" id="fsreq" hidden role="alertdialog" aria-labelledby="fsq">
   <div class="box">
     <h2 id="fsq" style="margin:0;font-size:22px">Grįžk į pilną ekraną</h2>
@@ -410,6 +425,10 @@ button.mini { padding: 5px 10px; font-size: 11px; }
           <label><input type="checkbox" id="optleave"> Skaičiuoti, kai mokinys išeina iš lango ar skirtuko</label>
         </div>
         <div class="row"><button type="button" class="ghost" id="newcode">Naujas kodas</button><button type="button" class="ghost" id="delcode">Ištrinti sesiją</button></div>
+        <div class="row" style="flex-wrap:nowrap">
+          <input id="bcast" type="text" placeholder="Žinutė visiems mokiniams" aria-label="Žinutė visiems" maxlength="300" style="flex:1;min-width:0">
+          <button type="button" class="ghost" id="bcsend">Siųsti visiems</button>
+        </div>
         <div id="livetbl"></div>
       </div>
       <div class="stats">
@@ -877,7 +896,7 @@ function detectDb() {
 }
 var Sync = (function () {
   var JK = "prakeiktas-join-v1", TK = "prakeiktas-teacher-code-v1", OK = "prakeiktas-opts-v1", me = null, hb = null, tcode = "", poll = null, last = {};
-  var opts = {}, cntLeave = 0, cntFs = 0, wired = false;
+  var opts = {}, cntLeave = 0, cntFs = 0, wired = false, seenH = 0, seenB = 0, hpoll = null, hlock = false;
   function url(p) { return DB_URL.replace(/\/+$/, "") + p + ".json"; }
   function req(method, p, body) {
     return fetch(url(p), { method: method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) })
@@ -890,6 +909,14 @@ var Sync = (function () {
   function beat() {
     if (hb) clearInterval(hb);
     var n = 0;
+    if (hpoll) clearInterval(hpoll);
+    $("helpui").hidden = false;
+    if (!seenH) { seenH = Date.now(); seenB = seenH; }
+    hpoll = setInterval(function () {
+      if (!me) return;
+      req("GET", base() + "/help").then(function (h) { if (h && h.ts > seenH) { seenH = h.ts; showHelp(h.text); } }).catch(function () {});
+      req("GET", "/sessions/" + me.code + "/meta/broadcast").then(function (h) { if (h && h.ts > seenB) { seenB = h.ts; showHelp(h.text); } }).catch(function () {});
+    }, 3000);
     hb = setInterval(function () {
       patch({});
       if (++n % 2 === 0 && me) req("GET", "/sessions/" + me.code + "/meta").then(function (m) { if (m && m.opts) opts = m.opts; }).catch(function () {});
@@ -915,6 +942,33 @@ var Sync = (function () {
     try { var o = JSON.parse(sessionStorage.getItem(JK) || "null"); if (o && o.code && o.id) { me = o; beat(); req("GET", "/sessions/" + o.code + "/meta").then(function (m) { applyOpts(m && m.opts); setTimeout(checkFs, 300); }).catch(function () {}); return true; } } catch (e) {}
     return false;
   }
+  function showHelp(t) {
+    $("helpmsg").textContent = t || "";
+    $("helpbox").hidden = false;
+    try { var c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.frequency.value = 660; g.gain.value = 0.05; o.connect(g); g.connect(c.destination); o.start(); setTimeout(function () { o.stop(); c.close(); }, 180); } catch (e) {}
+  }
+  function askHelp() {
+    if (!me || hlock) return;
+    hlock = true;
+    patch({ helpReq: true, helpAt: Date.now() });
+    $("helpbtn").textContent = "Prašymas išsiųstas";
+    setTimeout(function () { hlock = false; $("helpbtn").textContent = "Pagalba"; }, 20000);
+  }
+  function sendHelp(id, text) {
+    text = String(text || "").trim();
+    if (!text || !tcode) return;
+    req("PUT", "/sessions/" + tcode + "/students/" + id + "/help", { text: text, ts: Date.now() })
+      .then(function () { return req("PATCH", "/sessions/" + tcode + "/students/" + id, { helpReq: false }); })
+      .then(tpoll).catch(function () {});
+  }
+  function sendAll() {
+    var v = $("bcast").value.trim();
+    if (!v || !tcode) return;
+    req("PATCH", "/sessions/" + tcode + "/meta", { broadcast: { text: v, ts: Date.now() } }).then(function () { $("bcast").value = ""; }).catch(function () {});
+  }
+  $("helpbtn").addEventListener("click", askHelp);
+  $("helpok").addEventListener("click", function () { $("helpbox").hidden = true; });
+  $("bcsend").addEventListener("click", sendAll);
   /* Mokinio parinktys */
   function isFs() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
   function reqFs() {
@@ -974,6 +1028,8 @@ var Sync = (function () {
   function renderLive() {
     var head = $("livehead"), tbl = $("livetbl");
     if (!head) return;
+    var keep = {}, fid = null;
+    Array.prototype.forEach.call(tbl.querySelectorAll("input[data-id]"), function (i) { keep[i.getAttribute("data-id")] = i.value; if (document.activeElement === i) fid = i.getAttribute("data-id"); });
     head.textContent = "";
     if (!DB_URL) { head.appendChild(el("div", "Firebase dar neprijungtas. Čia matysis mokiniai, kai bus įrašytas duomenų bazės adresas.", "note")); tbl.textContent = ""; return; }
     if (!tcode) { head.appendChild(el("div", "Paspausk „Naujas kodas“ ir pasakyk jį mokiniams.", "note")); tbl.textContent = ""; return; }
@@ -983,7 +1039,7 @@ var Sync = (function () {
     var ids = Object.keys(last).sort(function (a, b) { return String(last[a].nick || "").localeCompare(String(last[b].nick || "")); });
     if (!ids.length) { tbl.appendChild(el("div", "Kol kas niekas neprisijungė.", "note")); return; }
     var t = el("table"), h = el("tr");
-    ["Mokinys", "Būsena", "Liko laiko", "Bandymai", "Atrakino", "Įvykiai", "Įvesti slaptažodžiai"].forEach(function (x) { h.appendChild(el("th", x)); });
+    ["Mokinys", "Būsena", "Liko laiko", "Bandymai", "Atrakino", "Įvykiai", "Pagalba", "Įvesti slaptažodžiai"].forEach(function (x) { h.appendChild(el("th", x)); });
     t.appendChild(h);
     var now = Date.now();
     ids.forEach(function (id) {
@@ -1003,6 +1059,16 @@ var Sync = (function () {
       if (s.leaves) ev.push("išėjo iš lango: " + s.leaves);
       if (s.fsExits) ev.push("išėjo iš pilno ekrano: " + s.fsExits);
       r.appendChild(el("td", ev.length ? ev.join("; ") : "-", ev.length ? "sbad" : ""));
+      var hc = el("td");
+      if (s.helpReq) hc.appendChild(el("div", "PRAŠO PAGALBOS " + (s.helpAt ? tm(s.helpAt) : ""), "sbad"));
+      var hin = el("input"); hin.type = "text"; hin.placeholder = "Pagalba mokiniui"; hin.maxLength = 300; hin.setAttribute("data-id", id);
+      if (keep[id] != null) hin.value = keep[id];
+      hin.addEventListener("keydown", function (e) { if (e.key === "Enter") { sendHelp(id, hin.value); hin.value = ""; keep[id] = ""; } });
+      var hb2 = el("button", "Siųsti"); hb2.type = "button"; hb2.className = "ghost";
+      hb2.addEventListener("click", function () { sendHelp(id, hin.value); hin.value = ""; keep[id] = ""; });
+      hc.appendChild(hin); hc.appendChild(hb2);
+      if (s.help && s.help.text) hc.appendChild(el("div", "Išsiųsta: " + s.help.text, "note"));
+      r.appendChild(hc);
       var at = s.attempts ? Object.keys(s.attempts).map(function (k) { return s.attempts[k]; }).sort(function (a, b) { return a.ts - b.ts; }) : [];
       var td = el("td");
       if (!at.length) td.textContent = "-";
@@ -1011,6 +1077,7 @@ var Sync = (function () {
       t.appendChild(r);
     });
     tbl.appendChild(t);
+    if (fid) { var fi = tbl.querySelector('input[data-id="' + fid + '"]'); if (fi) { fi.focus(); try { fi.setSelectionRange(fi.value.length, fi.value.length); } catch (e) {} } }
   }
   function tpoll() {
     if (!DB_URL || !tcode) { renderLive(); return; }
