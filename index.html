@@ -1231,6 +1231,15 @@ render();
 $("jf").addEventListener("submit", function (e) {
   e.preventDefault();
   var code = $("jcode").value.trim(), nick = $("jnick").value.trim();
+  if (isTeacher(code)) {
+    $("jcode").value = ""; $("jnick").value = ""; $("jmsg").textContent = "";
+    $("teacher").classList.add("over");
+    $("teacher").hidden = false;
+    $("teacher").scrollTop = 0;
+    openPanel();
+    $("tmsg").className = "msg ok"; $("tmsg").textContent = "Sveikas, mokytojau.";
+    return;
+  }
   if (!code || !nick) { $("jmsg").className = "msg bad"; $("jmsg").textContent = "Įvesk kodą ir slapyvardį."; return; }
   $("jmsg").className = "msg"; $("jmsg").textContent = "Jungiamasi...";
   Sync.join(code, nick).then(function () {
