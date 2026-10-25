@@ -199,6 +199,11 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 .join-box h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 34px; color: var(--pumpkin); }
 .join-box form { display: flex; flex-direction: column; gap: 10px; }
 .join-box input { text-transform: none; }
+.fsreq { position: fixed; inset: 0; z-index: 185; background: rgba(0,0,0,.92); display: flex; align-items: center; justify-content: center; padding: 16px; text-align: center; }
+.fsreq .box { max-width: 420px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.opts { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.opts label { display: flex; align-items: center; gap: 10px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+.opts input { width: auto; accent-color: var(--cyan); }
 .live-code { font-size: 34px; font-weight: 800; letter-spacing: .3em; color: var(--cyan); }
 .stats { border: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .stats table { border-collapse: collapse; width: 100%; font-size: 13px; }
@@ -293,6 +298,13 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 </head>
 <body>
 
+<div class="fsreq" id="fsreq" hidden role="alertdialog" aria-labelledby="fsq">
+  <div class="box">
+    <h2 id="fsq" style="margin:0;font-size:22px">Grįžk į pilną ekraną</h2>
+    <p style="margin:0">Šią užduotį reikia atlikti pilname ekrane.</p>
+    <button type="button" id="fsback">Pilnas ekranas</button>
+  </div>
+</div>
 <div class="join" id="join" hidden role="dialog" aria-labelledby="jt">
   <div class="tr" id="tr3" aria-hidden="true"></div>
   <div class="join-box">
@@ -391,6 +403,12 @@ button.mini { padding: 5px 10px; font-size: 11px; }
       <div class="stats" id="live">
         <h3>Mokinių stebėjimas realiu laiku</h3>
         <div id="livehead"></div>
+        <div class="opts" id="opts">
+          <label><input type="checkbox" id="optfs"> Mokinys gauna pilną ekraną (grįžti reikia paspaudus mygtuką)</label>
+          <label><input type="checkbox" id="optctx"> Neleisti dešiniojo pelės mygtuko</label>
+          <label><input type="checkbox" id="optpaste"> Neleisti įklijuoti į slaptažodžio lauką</label>
+          <label><input type="checkbox" id="optleave"> Skaičiuoti, kai mokinys išeina iš lango ar skirtuko</label>
+        </div>
         <div class="row"><button type="button" class="ghost" id="newcode">Naujas kodas</button><button type="button" class="ghost" id="delcode">Ištrinti sesiją</button></div>
         <div id="livetbl"></div>
       </div>
@@ -858,7 +876,8 @@ function detectDb() {
   });
 }
 var Sync = (function () {
-  var JK = "prakeiktas-join-v1", TK = "prakeiktas-teacher-code-v1", me = null, hb = null, tcode = "", poll = null, last = {};
+  var JK = "prakeiktas-join-v1", TK = "prakeiktas-teacher-code-v1", OK = "prakeiktas-opts-v1", me = null, hb = null, tcode = "", poll = null, last = {};
+  var opts = {}, cntLeave = 0, cntFs = 0, wired = false;
   function url(p) { return DB_URL.replace(/\/+$/, "") + p + ".json"; }
   function req(method, p, body) {
     return fetch(url(p), { method: method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) })
@@ -868,23 +887,69 @@ var Sync = (function () {
   function base() { return "/sessions/" + me.code + "/students/" + me.id; }
   function patch(o) { if (!me || !DB_URL) return; o.lastSeen = Date.now(); req("PATCH", base(), o).catch(function () {}); }
   function attempt(a) { if (!me || !DB_URL) return; req("POST", base() + "/attempts", a).catch(function () {}); }
-  function beat() { if (hb) clearInterval(hb); hb = setInterval(function () { patch({}); }, 5000); }
+  function beat() {
+    if (hb) clearInterval(hb);
+    var n = 0;
+    hb = setInterval(function () {
+      patch({});
+      if (++n % 2 === 0 && me) req("GET", "/sessions/" + me.code + "/meta").then(function (m) { if (m && m.opts) opts = m.opts; }).catch(function () {});
+    }, 5000);
+  }
   function reset() {
-    patch({ status: "joined", attempts: null, startedAt: null, launchedAt: null, unlockedAt: null, endedAt: null, deadline: null, limitMs: null, lockEnd: null, elapsed: null, tries: MAX_TRIES });
+    cntLeave = 0; cntFs = 0;
+    patch({ leaves: 0, fsExits: 0, status: "joined", attempts: null, startedAt: null, launchedAt: null, unlockedAt: null, endedAt: null, deadline: null, limitMs: null, lockEnd: null, elapsed: null, tries: MAX_TRIES });
   }
   function join(code, nick) {
     code = code.trim().toUpperCase();
     return req("GET", "/sessions/" + encodeURIComponent(code) + "/meta").then(function (m) {
       if (!m) throw "nocode";
+      applyOpts(m.opts);
       me = { code: code, nick: nick, id: rid() };
       try { sessionStorage.setItem(JK, JSON.stringify(me)); } catch (e) {}
       patch({ nick: nick, joinedAt: Date.now() });
       reset(); beat();
+      if (opts.fs) { reqFs(); setTimeout(checkFs, 600); }
     });
   }
   function resume() {
-    try { var o = JSON.parse(sessionStorage.getItem(JK) || "null"); if (o && o.code && o.id) { me = o; beat(); return true; } } catch (e) {}
+    try { var o = JSON.parse(sessionStorage.getItem(JK) || "null"); if (o && o.code && o.id) { me = o; beat(); req("GET", "/sessions/" + o.code + "/meta").then(function (m) { applyOpts(m && m.opts); setTimeout(checkFs, 300); }).catch(function () {}); return true; } } catch (e) {}
     return false;
+  }
+  /* Mokinio parinktys */
+  function isFs() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  function reqFs() {
+    var e = document.documentElement, f = e.requestFullscreen || e.webkitRequestFullscreen;
+    try { var p = f && f.call(e); if (p && p.catch) p.catch(function () {}); } catch (x) {}
+  }
+  function checkFs() { if (me && opts.fs && !isFs()) $("fsreq").hidden = false; }
+  function applyOpts(o) {
+    opts = o || {};
+    if (wired) return;
+    wired = true;
+    document.addEventListener("contextmenu", function (e) { if (me && opts.ctx) e.preventDefault(); });
+    ["paste", "drop"].forEach(function (ev) { $("pwin").addEventListener(ev, function (e) { if (me && opts.paste) e.preventDefault(); }); });
+    document.addEventListener("visibilitychange", function () {
+      if (me && opts.leave && document.hidden) { cntLeave++; patch({ leaves: cntLeave, lastLeave: Date.now() }); }
+    });
+    function fsch() {
+      if (isFs()) { $("fsreq").hidden = true; return; }
+      if (me && opts.fs) { cntFs++; patch({ fsExits: cntFs }); $("fsreq").hidden = false; }
+    }
+    document.addEventListener("fullscreenchange", fsch);
+    document.addEventListener("webkitfullscreenchange", fsch);
+    $("fsback").addEventListener("click", function () { reqFs(); setTimeout(function () { if (isFs()) $("fsreq").hidden = true; }, 300); });
+  }
+  function readOpts() { return { fs: $("optfs").checked, ctx: $("optctx").checked, paste: $("optpaste").checked, leave: $("optleave").checked }; }
+  function saveOpts() {
+    var o = readOpts();
+    try { localStorage.setItem(OK, JSON.stringify(o)); } catch (e) {}
+    if (DB_URL && tcode) req("PATCH", "/sessions/" + tcode + "/meta", { opts: o }).catch(function () {});
+  }
+  function loadOptsUi() {
+    var o = {};
+    try { o = JSON.parse(localStorage.getItem(OK) || "{}") || {}; } catch (e) {}
+    $("optfs").checked = !!o.fs; $("optctx").checked = !!o.ctx; $("optpaste").checked = !!o.paste; $("optleave").checked = !!o.leave;
+    ["optfs", "optctx", "optpaste", "optleave"].forEach(function (id) { $(id).onchange = saveOpts; });
   }
   function gen() {
     var al = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", a = new Uint8Array(6), r = "";
@@ -907,7 +972,7 @@ var Sync = (function () {
     var ids = Object.keys(last).sort(function (a, b) { return String(last[a].nick || "").localeCompare(String(last[b].nick || "")); });
     if (!ids.length) { tbl.appendChild(el("div", "Kol kas niekas neprisijungė.", "note")); return; }
     var t = el("table"), h = el("tr");
-    ["Mokinys", "Būsena", "Liko laiko", "Bandymai", "Atrakino", "Įvesti slaptažodžiai"].forEach(function (x) { h.appendChild(el("th", x)); });
+    ["Mokinys", "Būsena", "Liko laiko", "Bandymai", "Atrakino", "Įvykiai", "Įvesti slaptažodžiai"].forEach(function (x) { h.appendChild(el("th", x)); });
     t.appendChild(h);
     var now = Date.now();
     ids.forEach(function (id) {
@@ -923,6 +988,10 @@ var Sync = (function () {
       r.appendChild(el("td", left));
       r.appendChild(el("td", (s.tries != null ? s.tries : MAX_TRIES) + " iš " + MAX_TRIES));
       r.appendChild(el("td", s.unlockedAt ? tm(s.unlockedAt) + " (po " + fmt(s.elapsed || 0) + ")" : "-", s.unlockedAt ? "sok" : ""));
+      var ev = [];
+      if (s.leaves) ev.push("išėjo iš lango: " + s.leaves);
+      if (s.fsExits) ev.push("išėjo iš pilno ekrano: " + s.fsExits);
+      r.appendChild(el("td", ev.length ? ev.join("; ") : "-", ev.length ? "sbad" : ""));
       var at = s.attempts ? Object.keys(s.attempts).map(function (k) { return s.attempts[k]; }).sort(function (a, b) { return a.ts - b.ts; }) : [];
       var td = el("td");
       if (!at.length) td.textContent = "-";
@@ -938,13 +1007,14 @@ var Sync = (function () {
   }
   function tstart() {
     try { tcode = localStorage.getItem(TK) || ""; } catch (e) { tcode = ""; }
+    loadOptsUi();
     renderLive(); tpoll();
     if (!poll) poll = setInterval(function () { if ($("panel").hidden || $("teacher").hidden) return; tpoll(); }, 2000);
   }
   function newCode() {
     if (!DB_URL) return;
     var c = gen();
-    req("PUT", "/sessions/" + c + "/meta", { created: Date.now() }).then(function () {
+    req("PUT", "/sessions/" + c + "/meta", { created: Date.now(), opts: readOpts() }).then(function () {
       tcode = c; last = {};
       try { localStorage.setItem(TK, c); } catch (e) {}
       renderLive();
