@@ -837,7 +837,26 @@ function beginSession() {
 $("lkW").addEventListener("dblclick", function () { openGate("teacher"); });
 
 /* Stebėjimas realiu laiku per Firebase Realtime Database (REST) */
-var DB_URL = ""; /* įrašyk Firebase adresą, pvz. https://xxx-default-rtdb.europe-west1.firebasedatabase.app */
+var DB_URL = "";
+var DB_CANDIDATES = [
+  "https://prakeiktas-serveris-default-rtdb.europe-west1.firebasedatabase.app",
+  "https://prakeiktas-serveris-default-rtdb.firebaseio.com",
+  "https://prakeiktas-serveris-default-rtdb.asia-southeast1.firebasedatabase.app"
+];
+function detectDb() {
+  return new Promise(function (resolve) {
+    var left = DB_CANDIDATES.length, found = false;
+    function fin() { if (!found && --left === 0) resolve(); }
+    DB_CANDIDATES.forEach(function (u) {
+      var ctl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+      var to = setTimeout(function () { if (ctl) ctl.abort(); }, 6000);
+      fetch(u + "/sessions/ping.json", ctl ? { signal: ctl.signal } : {}).then(function (r) {
+        clearTimeout(to);
+        if (r.ok && !found) { found = true; DB_URL = u; resolve(); } else fin();
+      }).catch(function () { clearTimeout(to); fin(); });
+    });
+  });
+}
 var Sync = (function () {
   var JK = "prakeiktas-join-v1", TK = "prakeiktas-teacher-code-v1", me = null, hb = null, tcode = "", poll = null, last = {};
   function url(p) { return DB_URL.replace(/\/+$/, "") + p + ".json"; }
@@ -1074,8 +1093,10 @@ $("jf").addEventListener("submit", function (e) {
     $("jmsg").textContent = err === "nocode" ? "Tokio kodo nėra." : "Nepavyko prisijungti. Patikrink ryšį.";
   });
 });
-if (DB_URL && !Sync.resume()) { $("join").hidden = false; setTimeout(function () { $("jcode").focus(); }, 100); }
-else { beginSession(); }
+detectDb().then(function () {
+  if (DB_URL && !Sync.resume()) { $("join").hidden = false; setTimeout(function () { $("jcode").focus(); }, 100); }
+  else { beginSession(); }
+});
 </script>
 
 </body>
