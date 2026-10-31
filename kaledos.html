@@ -1,0 +1,1357 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grinčo serveris</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Baloo+2:wght@800&display=swap">
+<style>
+/* Layout: one terminal column, a single locked gift-store door for students, a quiet teacher console at the bottom. Winter-night terminal, committed single theme. */
+:root {
+  --void: #0b1424;
+  --panel: #12203a;
+  --line: #26406a;
+  --ink: #eef3fb;
+  --dim: #8fa3c2;
+  --pumpkin: #f4c25b;
+  --cyan: #9fd4f5;
+  --blood: #e2475a;
+  --display: "Baloo 2", "Trebuchet MS", "Arial Black", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--void); }
+/* Slinkties juostų nerodome, bet puslapis vis tiek slenka */
+* { scrollbar-width: none; -ms-overflow-style: none; }
+*::-webkit-scrollbar { display: none; width: 0; height: 0; }
+body {
+  margin: 0;
+  background: var(--void);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1.6;
+  padding-block: 24px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background-image:
+    radial-gradient(60% 40% at 80% -5%, rgba(244,194,91,.16), transparent 70%),
+    radial-gradient(50% 40% at 0% 30%, rgba(159,212,245,.08), transparent 70%);
+  background-attachment: fixed;
+}
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,.22) 3px);
+  z-index: 50;
+}
+.wrap { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+.bar {
+  display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between;
+  font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
+}
+.bar b { color: var(--cyan); font-weight: 600; }
+#clock.warn { color: var(--blood); }
+h1 {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(38px, 11vw, 76px);
+  line-height: .95;
+  margin: 8px 0 0;
+  color: var(--pumpkin);
+  text-wrap: balance;
+  text-shadow: 3px 0 var(--blood), -3px 0 var(--cyan);
+  animation: flick 5s steps(1) infinite;
+}
+@keyframes flick {
+  0%, 92%, 100% { text-shadow: 3px 0 var(--blood), -3px 0 var(--cyan); opacity: 1; }
+  93% { text-shadow: -5px 0 var(--blood), 5px 0 var(--cyan); opacity: .8; }
+  95% { text-shadow: 6px 2px var(--blood), -6px -2px var(--cyan); opacity: 1; }
+  97% { opacity: .6; }
+}
+.lede { margin: 0; max-width: 60ch; }
+.lede em { color: var(--cyan); font-style: normal; }
+.skull { margin: 0; color: #5fbf8a; font-size: 11px; line-height: 1.15; white-space: pre; overflow-x: auto; cursor: default; user-select: none; }
+
+.lvl {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 18px 18px 20px;
+  display: flex; flex-direction: column; gap: 14px;
+  min-width: 0;
+}
+.lvl h2 {
+  margin: 0; font-size: 13px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--pumpkin);
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px;
+}
+.tag { color: var(--blood); font-weight: 600; }
+.lvl.solved { border-color: var(--cyan); }
+.lvl.solved .tag { color: var(--cyan); }
+.lvl p { margin: 0; white-space: pre-line; }
+
+.riddle {
+  font-size: clamp(22px, 7vw, 38px); font-weight: 800; letter-spacing: .22em; color: var(--cyan);
+  text-shadow: 0 0 14px rgba(159,212,245,.55); overflow-wrap: anywhere; white-space: pre-line;
+}
+
+form.pw { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* Pirmas ekranas: viršuje antraštė, visa kita vieta skirta slaptažodžiui ir dideliam laikmačiui */
+.screen { display: flex; flex-direction: column; gap: 20px; min-height: calc(100vh - 88px); min-height: calc(100dvh - 88px); }
+.head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.head .skull { font-size: 9px; }
+.head-text { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.head-text h1 { font-size: clamp(30px, 7vw, 56px); margin: 0; }
+.head-text .lede { font-size: 13px; }
+#door { flex: 1; justify-content: center; align-items: center; text-align: center; gap: clamp(12px, 2.4vh, 22px); padding: clamp(16px, 3vw, 32px); }
+#door h2 { align-self: stretch; text-align: left; }
+.timer {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px;
+  width: auto; max-width: 100%; padding: 14px clamp(18px, 4vw, 40px) 16px;
+  border: 1px solid var(--line); background: linear-gradient(180deg, rgba(159,212,245,.07), rgba(159,212,245,0) 70%);
+}
+.timer::before, .timer::after { content: ""; position: absolute; width: 16px; height: 16px; border: 2px solid var(--cyan); }
+.timer::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+.timer::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+.timer-label { display: flex; align-items: center; gap: 10px; font-size: 12px; letter-spacing: .26em; text-transform: uppercase; color: var(--dim); }
+.timer-label::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+#clock { font-size: clamp(48px, 11vw, 120px); font-weight: 800; line-height: 1; color: var(--cyan); text-shadow: 0 0 28px rgba(159,212,245,.5); font-variant-numeric: tabular-nums; letter-spacing: .02em; white-space: nowrap; }
+#clock.warn { text-shadow: 0 0 22px rgba(226,71,90,.55); }
+.meter { width: 100%; height: 4px; background: var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; width: 100%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); transition: width .25s linear; }
+.timer.warn { border-color: var(--blood); }
+.timer.warn::before, .timer.warn::after { border-color: var(--blood); }
+.timer.warn .meter i { background: var(--blood); box-shadow: 0 0 10px var(--blood); }
+.timer.warn .timer-label::before { background: var(--blood); box-shadow: 0 0 10px var(--blood); }
+#door #instr { max-width: 62ch; font-size: clamp(14px, 1.8vw, 16px); }
+#door .riddle { font-size: clamp(30px, 7vw, 64px); }
+#door form.pw { width: 100%; max-width: 540px; justify-content: center; }
+#door .field { flex: 1 1 300px; padding: 0 16px; }
+#door .field input { font-size: clamp(17px, 2.4vw, 22px); padding: 12px 0; }
+#door form.pw button { font-size: 14px; padding: 12px 24px; }
+#door .msg { font-size: 15px; }
+#door .tries { justify-content: center; }
+.final, .teacher { width: 100%; max-width: 760px; margin-inline: auto; }
+
+/* Hakerio stiliaus šonai: pro šalis slenka kodas */
+.stage { flex: 1; display: grid; grid-template-columns: 130px minmax(0, 1fr) 130px; gap: 16px; align-items: stretch; }
+.side { position: relative; overflow: hidden; min-height: 0; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent); }
+.side pre { position: absolute; top: 0; left: 0; right: 0; margin: 0; font-size: 11px; line-height: 1.5; color: var(--cyan); opacity: .6; white-space: pre; animation: scrollup 40s linear infinite; }
+.side.r pre { color: var(--pumpkin); animation-direction: reverse; }
+@keyframes scrollup { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+
+/* Rašymo efektas: dar neparašytas tekstas užima vietą, bet nematomas */
+.rest { visibility: hidden; }
+.cur { display: inline-block; width: 0; overflow: visible; color: var(--cyan); animation: blink .7s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+@media (max-width: 900px) {
+  .stage { grid-template-columns: minmax(0, 1fr); }
+  .side { display: none; }
+}
+.field {
+  flex: 1 1 200px; min-width: 0; display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--line); background: var(--void); padding: 0 12px;
+}
+.field:focus-within { border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
+.field span { color: var(--pumpkin); font-weight: 800; }
+.field input {
+  flex: 1; min-width: 0; background: transparent; border: 0; outline: 0;
+  color: var(--ink); font: inherit; font-size: 16px; letter-spacing: .12em; text-transform: uppercase; padding: 12px 0;
+}
+.field input::placeholder { color: var(--dim); text-transform: none; letter-spacing: .04em; }
+button {
+  font: inherit; font-weight: 800; font-size: 13px; letter-spacing: .1em; text-transform: uppercase;
+  cursor: pointer; padding: 12px 18px; border: 1px solid var(--pumpkin); background: var(--pumpkin); color: #1a1206;
+}
+button:hover { background: #ffd47a; }
+button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+button.ghost { background: transparent; color: var(--pumpkin); }
+button.ghost:hover { background: rgba(244,194,91,.12); }
+button:disabled { opacity: .35; cursor: not-allowed; }
+button.mini { padding: 5px 10px; font-size: 11px; }
+.msg { min-height: 1.6em; font-size: 13px; letter-spacing: .04em; }
+.msg.bad { color: var(--blood); }
+.msg.ok { color: var(--cyan); }
+.shake { animation: shake .35s; }
+@keyframes shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(4px); } }
+.hint {
+  border-left: 3px solid var(--cyan); padding: 8px 12px; background: rgba(159,212,245,.07); font-size: 14px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.mask { font-size: 24px; font-weight: 800; letter-spacing: .3em; color: var(--cyan); overflow-wrap: anywhere; }
+
+.final { border: 1px solid var(--cyan); background: linear-gradient(180deg, rgba(159,212,245,.1), transparent); padding: 22px 18px; display: flex; flex-direction: column; gap: 10px; }
+.final h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: clamp(28px, 8vw, 48px); color: var(--cyan); text-shadow: 0 0 18px rgba(159,212,245,.5); line-height: 1; }
+.final p { margin: 0; white-space: pre-line; }
+.final .time { color: var(--pumpkin); font-weight: 800; }
+
+/* Teacher console */
+.teacher { border-top: 1px dashed var(--line); padding-top: 18px; display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+.teacher.over { position: fixed; inset: 0; z-index: 195; width: 100%; max-width: none; margin: 0; background: var(--void); overflow-y: auto; padding: 24px max(16px, calc((100vw - 760px) / 2)); }
+.join { position: fixed; inset: 0; z-index: 190; background: var(--void); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.join-box { width: 100%; max-width: 400px; border: 1px solid var(--cyan); box-shadow: 0 0 30px rgba(159,212,245,.25); padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+.join-box h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 34px; color: var(--pumpkin); }
+.join-box form { display: flex; flex-direction: column; gap: 10px; }
+.join-box input { text-transform: none; }
+.helpui { position: fixed; left: 12px; bottom: 12px; z-index: 80; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; max-width: min(360px, calc(100vw - 24px)); }
+.helpui .hbtn { padding: 8px 14px; font-size: 13px; }
+.helpbox { background: var(--void); border: 1px solid var(--pumpkin); box-shadow: 0 0 24px rgba(244,194,91,.35); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; animation: flick 3s steps(1) 1; }
+.helpbox b { color: var(--pumpkin); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+.helpbox p { margin: 0; font-size: 15px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.stats td input[type=text] { width: 100%; min-width: 140px; padding: 6px 8px; font-size: 13px; }
+.stats td button { padding: 4px 10px; font-size: 12px; margin-top: 4px; }
+.fsreq { position: fixed; inset: 0; z-index: 185; background: rgba(0,0,0,.92); display: flex; align-items: center; justify-content: center; padding: 16px; text-align: center; }
+.fsreq .box { max-width: 420px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.opts { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.opts label { display: flex; align-items: center; gap: 10px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+.opts input { width: auto; accent-color: var(--cyan); }
+.live-code { font-size: 34px; font-weight: 800; letter-spacing: .3em; color: var(--cyan); }
+.stats { border: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.stats table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.stats th, .stats td { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.stats th { color: var(--dim); font-weight: 600; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.stats .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 14px; }
+.stats .kv span:nth-child(odd) { color: var(--dim); }
+.stats .sok { color: var(--cyan); }
+.stats .sbad { color: var(--blood); }
+.teacher h3 { margin: 0; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+.teacher .field input { text-transform: none; letter-spacing: .04em; }
+.panel { border: 1px solid var(--pumpkin); padding: 16px; display: flex; flex-direction: column; gap: 14px; background: var(--panel); }
+.panel label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.panel input[type=text], .panel input[type=number], .panel input[type=time], .panel textarea {
+  font: inherit; font-size: 15px; letter-spacing: normal; text-transform: none; color: var(--ink);
+  background: var(--void); border: 1px solid var(--line); padding: 10px 12px; width: 100%; min-width: 0; resize: vertical;
+}
+.panel input[type=text]:focus, .panel input[type=number]:focus, .panel input[type=time]:focus, .panel textarea:focus { outline: 0; border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.note { color: var(--dim); font-size: 12px; margin: 0; }
+
+/* Bandymai ir "hakerio ekranas" */
+.tries { display: flex; gap: 8px; align-items: center; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--pumpkin); background: var(--pumpkin); box-shadow: 0 0 8px var(--pumpkin); }
+.dot.off { background: transparent; box-shadow: none; border-color: var(--dim); }
+.hacked {
+  position: fixed; inset: 0; z-index: 100; background: #000;
+  display: flex; align-items: center; justify-content: center;
+  padding-block: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.hacked canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.hk-box {
+  position: relative; width: 100%; max-width: 560px; background: rgba(0,0,0,.84);
+  border: 1px solid var(--blood); box-shadow: 0 0 40px rgba(226,71,90,.35);
+  padding: 24px 20px; display: flex; flex-direction: column; gap: 14px;
+}
+.hk-box h2 {
+  margin: 0; font-family: var(--display); font-weight: 800; font-size: clamp(30px, 9vw, 56px); line-height: 1;
+  color: var(--blood); text-shadow: 3px 0 var(--cyan), -3px 0 var(--pumpkin); animation: flick 3s steps(1) infinite;
+}
+.hk-box p { margin: 0; }
+.tr { position: fixed; top: 0; right: 0; width: 72px; height: 72px; z-index: 60; touch-action: manipulation; }
+.gate { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.78); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.gate-box { width: 100%; max-width: 380px; background: var(--void); border: 1px solid var(--cyan); box-shadow: 0 0 30px rgba(159,212,245,.25); padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.gate-box h3 { margin: 0; color: var(--cyan); font-size: 15px; font-weight: 600; }
+.gate-box form { display: flex; gap: 8px; flex-wrap: wrap; }
+.gate-box .field { flex: 1 1 180px; }
+.corner { position: absolute; right: 0; bottom: 0; width: 96px; height: 96px; z-index: 5; touch-action: manipulation; }
+.hk-box .hk-link { align-self: flex-start; background: transparent; border: 0; color: var(--dim); text-decoration: underline; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 13px; padding: 4px 0; }
+.hk-box .hk-link:hover { background: transparent; color: var(--ink); }
+
+/* Užrakintas ekranas iki paleidimo */
+.lock {
+  position: fixed; inset: 0; z-index: 120; color: #fff;
+  font-family: "Segoe UI", "Segoe UI Variable", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  background:
+    radial-gradient(90% 70% at 18% 8%, rgba(80,150,230,.45) 0%, transparent 62%),
+    radial-gradient(70% 55% at 92% 92%, rgba(69,181,130,.32) 0%, transparent 62%),
+    radial-gradient(50% 30% at 50% 110%, rgba(244,194,91,.35) 0%, transparent 70%),
+    linear-gradient(160deg, #081226, #10284a 55%, #061a1a);
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  transition: opacity .7s;
+}
+.lock.fade { opacity: 0; pointer-events: none; }
+.lk-top { margin-top: clamp(40px, 12vh, 120px); text-align: center; }
+.lk-time { font-size: clamp(76px, 22vw, 168px); font-weight: 300; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.lk-date { font-size: clamp(18px, 4.6vw, 30px); margin-top: 6px; opacity: .92; text-transform: capitalize; }
+.lk-bottom { width: 100%; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: flex-end; gap: 14px; }
+.lk-note { display: flex; align-items: center; gap: 10px; font-size: 15px; opacity: .92; min-width: 0; }
+.lk-note b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.lk-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 0; }
+.lk-icons { display: flex; align-items: center; gap: 14px; opacity: .9; }
+.lock button { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 13px; }
+.lock .lk-link { background: transparent; border: 0; color: rgba(255,255,255,.7); text-decoration: underline; padding: 4px 6px; cursor: pointer; }
+.lock .lk-link:hover { color: #fff; background: transparent; }
+.lock form { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.lock input { font: inherit; font-size: 15px; padding: 8px 10px; border: 1px solid rgba(255,255,255,.4); background: rgba(0,0,0,.4); color: #fff; width: 210px; max-width: 100%; min-width: 0; }
+.lock input:focus { outline: 2px solid #fff; outline-offset: 1px; }
+.lock button[type=submit] { background: #fff; color: #111; border: 0; padding: 8px 16px; font-weight: 600; }
+.lock button[type=submit]:hover { background: #e6e6e6; }
+.lk-msg { min-height: 1.2em; font-size: 12px; color: #ffb3c1; }
+
+@media (prefers-reduced-motion: reduce) {
+  h1, .shake, .hk-box h2, .timer-label::before, .side pre { animation: none; }
+  .meter i { transition: none; }
+  .lock { transition: none; }
+}
+
+.pausescr { position: fixed; inset: 0; z-index: 110; display: grid; place-items: center; padding: 16px; background: var(--void); }
+.pause-box { width: 100%; max-width: 420px; border: 1px solid var(--cyan); box-shadow: 0 0 30px rgba(159,212,245,.25); background: var(--panel); padding: 24px; display: flex; flex-direction: column; gap: 14px; text-align: center; align-items: center; }
+.pause-box h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 48px; color: var(--cyan); line-height: 1; }
+.pause-box p { margin: 0; }
+.pause-box .pz-sub { color: var(--dim); font-size: 13px; }
+.pz-form { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; width: 100%; }
+.pz-form input { flex: 1 1 160px; min-width: 0; font: inherit; padding: 10px 12px; background: var(--void); color: var(--ink); border: 1px solid var(--line); }
+.pause-box b { color: var(--pumpkin); }
+.backlink { color: var(--dim); font-size: 13px; text-decoration: underline; align-self: flex-start; }
+.backlink:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div class="helpui" id="helpui" hidden>
+  <div class="helpbox" id="helpbox" hidden role="status">
+    <b>Pagalba nuo mokytojo</b>
+    <p id="helpmsg"></p>
+    <button type="button" class="ghost hbtn" id="helpok">Gerai</button>
+  </div>
+  <button type="button" class="ghost hbtn" id="helpbtn">Pagalba</button>
+</div>
+<div class="fsreq" id="fsreq" hidden role="alertdialog" aria-labelledby="fsq">
+  <div class="box">
+    <h2 id="fsq" style="margin:0;font-size:22px">Grįžk į pilną ekraną</h2>
+    <p style="margin:0">Šią užduotį reikia atlikti pilname ekrane.</p>
+    <button type="button" id="fsback">Pilnas ekranas</button>
+  </div>
+</div>
+<div class="join" id="join" hidden role="dialog" aria-labelledby="jt">
+  <div class="tr" id="tr3" aria-hidden="true"></div>
+  <div class="join-box">
+    <h2 id="jt">Prisijunk</h2>
+    <form id="jf" autocomplete="off">
+      <label class="field"><span>#</span><input id="jcode" type="text" placeholder="pamokos kodas" aria-label="Pamokos kodas" maxlength="8" autocapitalize="characters"></label>
+      <label class="field"><span>@</span><input id="jnick" type="text" placeholder="slapyvardis" aria-label="Slapyvardis" maxlength="20"></label>
+      <button type="submit">Prisijungti</button>
+    </form>
+    <div class="msg" id="jmsg" role="status"></div>
+    <a class="backlink" href="./">← Pasirinkti kitą žaidimą</a>
+  </div>
+</div>
+<div class="gate" id="gate" hidden role="dialog" aria-labelledby="gt">
+  <div class="gate-box">
+    <h3 id="gt">&#128274; Įvesk slaptažodį</h3>
+    <form id="gf" autocomplete="off">
+      <label class="field"><span>#</span><input id="gin" type="password" placeholder="slaptažodis" aria-label="Slaptažodis"></label>
+      <button type="submit" class="ghost">Gerai</button>
+      <button type="button" class="ghost" id="gx">Atšaukti</button>
+    </form>
+    <div class="msg" id="gmsg" role="status"></div>
+  </div>
+</div>
+<div class="wrap">
+  <div class="screen">
+  <div class="bar">
+    <span>elfas@ašigalis:~# <b>ssh --dovanu-sandelis</b></span>
+  </div>
+
+  <header class="head">
+    <pre class="skull" id="skull" aria-hidden="true">        *
+       /.\
+      /..'\
+      /'.'\
+     /.''.'\
+     /.'.'.\
+    /'.''.'.\
+    ^^^[_]^^^</pre>
+    <div class="head-text">
+    <h1>Grinčo serveris</h1>
+    <p class="lede">Kūčių naktį Grinčas į Šiaurės ašigalio serverį įleido virusą <em>Grinch.exe</em>. Jis užrakino dovanų sandėlio duris, ir joms atrakinti reikia slaptažodžio. Išspręskite mįslę, kol rogės dar spėja pakilti.</p>
+    </div>
+  </header>
+
+  <div class="stage">
+  <aside class="side l" aria-hidden="true"><pre id="sideL"></pre></aside>
+  <section class="lvl" id="door" aria-labelledby="dh">
+    <h2 id="dh"><span>Durys · Slaptažodis</span><span class="tag" id="state">UŽRAKINTA</span></h2>
+    <div class="timer" id="timer"><span class="timer-label" id="tlabel">Liko laiko</span><b id="clock">00:00</b><div class="meter" id="meter" aria-hidden="true"><i id="meterfill"></i></div></div>
+    <p id="instr"></p>
+    <div class="riddle" id="riddle"></div>
+    <form class="pw" id="f" autocomplete="off">
+      <label class="field"><span>&gt;</span><input id="pwin" type="text" placeholder="įrašyk slaptažodį" autocapitalize="characters" spellcheck="false" aria-label="Slaptažodis"></label>
+      <button type="submit" id="go">Atrakinti</button>
+    </form>
+    <div class="msg" id="msg" role="status"></div>
+    <div class="tries" id="tries" aria-live="polite"></div>
+  </section>
+  <aside class="side r" aria-hidden="true"><pre id="sideR"></pre></aside>
+  </div>
+  </div>
+
+  <section class="final" id="final" hidden>
+    <h2>Kalėdos išgelbėtos</h2>
+    <p id="finalmsg"></p>
+    <p>Jūsų laikas: <span class="time" id="finaltime">00:00</span></p>
+  </section>
+
+  <section class="teacher" id="teacher" aria-labelledby="th" hidden>
+    <h3 id="th">Mokytojo prieiga</h3>
+    <form class="pw" id="tf" autocomplete="off">
+      <label class="field"><span>#</span><input id="tin" type="password" placeholder="mokytojo slaptažodis" aria-label="Mokytojo slaptažodis" style="letter-spacing:.04em"></label>
+      <button type="submit" class="ghost">Prisijungti</button>
+    </form>
+    <div class="msg" id="tmsg" role="status"></div>
+
+    <div class="panel" id="panel" hidden>
+      <label for="np">Mokinių slaptažodis
+        <input id="np" type="text" spellcheck="false">
+      </label>
+      <label for="nd">Laikas iki paleidimo minutėmis (0 reiškia, kad užrakinto ekrano nebus)
+        <input id="nd" type="number" min="0" max="120" step="1" inputmode="numeric">
+      </label>
+      <label for="nm">Laikas slaptažodžiui įvesti minutėmis (0 reiškia be laiko ribos)
+        <input id="nm" type="number" min="0" max="180" step="1" inputmode="numeric">
+      </label>
+      <label for="nr">Mįslė (didelis tekstas, pavyzdžiui užšifruotas žodis)
+        <input id="nr" type="text" spellcheck="false">
+      </label>
+      <label for="ni">Paaiškinimas mokiniams
+        <textarea id="ni" rows="3"></textarea>
+      </label>
+      <label for="nf">Žinutė, kai durys atsidaro
+        <textarea id="nf" rows="3"></textarea>
+      </label>
+      <div class="stats" id="live">
+        <h3>Mokinių stebėjimas realiu laiku</h3>
+        <div id="livehead"></div>
+        <div class="opts" id="opts">
+          <label><input type="checkbox" id="optfs"> Užrakinti pilname ekrane (Esc užrakinamas, uždaryti ar perkrauti puslapį sunku, išėjus uždengiama)</label>
+          <label><input type="checkbox" id="optctx"> Neleisti dešiniojo pelės mygtuko</label>
+          <label><input type="checkbox" id="optpaste"> Neleisti įklijuoti į slaptažodžio lauką</label>
+          <label><input type="checkbox" id="optleave"> Skaičiuoti, kai mokinys išeina iš lango ar skirtuko</label>
+        </div>
+        <div class="row"><button type="button" class="ghost" id="newcode">Naujas kodas</button><button type="button" class="ghost" id="delcode">Ištrinti sesiją</button><button type="button" class="ghost" id="rsall">Visiems iš naujo</button><button type="button" class="ghost" id="pauseall">❚❚ Sustabdyti visus</button><button type="button" class="ghost" id="resumeall">▶ Tęsti visiems</button></div>
+        <div class="row" style="flex-wrap:nowrap">
+          <input id="bcast" type="text" placeholder="Žinutė visiems mokiniams" aria-label="Žinutė visiems" maxlength="300" style="flex:1;min-width:0">
+          <button type="button" class="ghost" id="bcsend">Siųsti visiems</button>
+        </div>
+        <div id="livetbl"></div>
+      </div>
+      <div class="stats">
+        <h3>Šio kompiuterio statistika</h3>
+        <div id="stats"></div>
+        <div class="row"><button type="button" class="ghost" id="clrstats">Išvalyti statistiką</button></div>
+      </div>
+      <div class="row">
+        <button type="button" id="save">Išsaugoti</button>
+        <button type="button" class="ghost" id="pauseme">❚❚ Sustabdyti šį kompiuterį</button>
+        <button type="button" class="ghost" id="restart">Pradėti iš naujo</button>
+        <button type="button" class="ghost" id="launchnow">Paleisti dabar</button>
+        <button type="button" class="ghost" id="defaults">Atstatyti pradinius</button>
+        <button type="button" class="ghost" id="fs" hidden>Per visą ekraną</button>
+        <button type="button" class="ghost" id="logout">Atsijungti</button>
+      </div>
+      <div class="msg" id="pmsg" role="status"></div>
+      <p class="note">Pakeitimai išsaugomi tik šiame įrenginyje ir šioje naršyklėje. Mokiniai kituose įrenginiuose matys pradinį slaptažodį. Iki paleidimo rodomas užrakintas ekranas. Kai laikas baigiasi, atsiveria slaptažodžio langas ir pradeda eiti laikas slaptažodžiui įvesti. Užrakintame ekrane mokytojas gali paspausti „Mokytojas“ ir įvesti savo slaptažodį, kad paleistų iš karto.</p>
+    </div>
+  </section>
+</div>
+
+<div class="lock" id="lock" hidden role="dialog" aria-label="Užrakintas ekranas">
+  <div class="tr" id="tr2" aria-hidden="true"></div>
+  <div class="lk-top">
+    <div class="lk-time" id="lkTime">00:00</div>
+    <div class="lk-date" id="lkDate"></div>
+  </div>
+  <div class="lk-bottom">
+    <div class="lk-right">
+      <div class="lk-icons">
+        <span id="lkW" style="display:inline-flex;padding:8px;margin:-8px;touch-action:manipulation"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 8.8a15 15 0 0 1 20 0"/><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16.1a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor"/></svg></span>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pausescr" id="pausescr" hidden role="dialog" aria-modal="true" aria-labelledby="pzh">
+  <div class="pause-box">
+    <h2 id="pzh">Pauzė</h2>
+    <p>Mokytojas sustabdė žaidimą. Laikas sustojo ties <b id="pzclock">00:00</b>.</p>
+    <p class="pz-sub">Palaukite, kol mokytojas leis tęsti.</p>
+    <form id="pzform" autocomplete="off" class="pz-form">
+      <input id="pzin" type="password" placeholder="mokytojo slaptažodis" aria-label="Mokytojo slaptažodis">
+      <button type="submit">▶ Tęsti</button>
+    </form>
+    <div class="msg bad" id="pzmsg" role="status"></div>
+  </div>
+</div>
+
+<div class="hacked" id="hacked" hidden role="alertdialog" aria-labelledby="hk">
+  <canvas id="rain" aria-hidden="true"></canvas>
+  <div class="hk-box">
+    <h2 id="hk">Prieiga užblokuota</h2>
+    <p id="hkmsg">Visi bandymai išnaudoti. Grinch.exe pavogė Kalėdas.</p>
+  </div>
+  <div class="corner" id="corner" aria-hidden="true"></div>
+</div>
+
+<script>
+/* Mokytojo prieigos žodis laikomas base64 forma (nesvarbu didžiosios ar mažosios raidės). */
+var TEACHER = "S0FUSU5BUw==";
+var DEFAULTS = {
+  delay: "1",
+  mins: "15",
+  pw: "SNIEGAS",
+  riddle: "VQLHJDV",
+  instr: "Grinčas paliko užšifruotą žinutę. Kiekviena raidė pastumta 3 vietomis į priekį abėcėlėje. Atšifruok žodį ir įrašyk jį kaip slaptažodį.",
+  fin: "Durys atsidarė! Grinch.exe pašalintas, dovanų sandėlis atrakintas. Atsiimk dovaną iš mokytojo."
+};
+var GAME = "kaledos";
+var KEY = "grinco-serveris-v1";
+
+function $(id) { return document.getElementById(id); }
+function norm(s) { return s.replace(/\s+/g, "").toUpperCase(); }
+function isTeacher(v) { try { return btoa(norm(v)) === TEACHER; } catch (e) { return false; } }
+var MAX_TRIES = 3, tries = MAX_TRIES;
+function renderTries() {
+  var h = "<span>Bandymai</span>";
+  for (var i = 0; i < MAX_TRIES; i++) h += '<span class="dot' + (i < tries ? "" : " off") + '"></span>';
+  $("tries").innerHTML = h;
+}
+
+/* Hakerio ekranas: raidės krenta per visą ekraną */
+var rainId = null, onResize = null;
+function startRain() {
+  stopRain();
+  var c = $("rain"), ctx = c.getContext("2d");
+  var chars = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ*+❄✦", size = 16, drops = [];
+  function fit() {
+    c.width = window.innerWidth; c.height = window.innerHeight;
+    drops = [];
+    for (var i = 0; i < Math.ceil(c.width / size); i++) drops[i] = Math.floor(Math.random() * -40);
+  }
+  fit();
+  onResize = fit;
+  window.addEventListener("resize", onResize);
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, c.width, c.height);
+  function frame() {
+    ctx.fillStyle = "rgba(0,0,0,.08)";
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.font = size + "px monospace";
+    for (var i = 0; i < drops.length; i++) {
+      var r = Math.random();
+      ctx.fillStyle = r < .03 ? "#e2475a" : (r < .08 ? "#f4c25b" : "#9fd4f5");
+      ctx.fillText(chars.charAt(Math.floor(Math.random() * chars.length)), i * size, drops[i] * size);
+      if (drops[i] * size > c.height && Math.random() > .975) drops[i] = 0;
+      drops[i]++;
+    }
+  }
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) { for (var k = 0; k < 160; k++) frame(); return; }
+  (function loop() { frame(); rainId = requestAnimationFrame(loop); })();
+}
+function stopRain() {
+  if (rainId) cancelAnimationFrame(rainId);
+  rainId = null;
+  if (onResize) window.removeEventListener("resize", onResize);
+  onResize = null;
+}
+function lockOut(reason) {
+  $("hkmsg").textContent = reason === "time"
+    ? "Laikas baigėsi. Grinch.exe pavogė Kalėdas."
+    : "Visi bandymai išnaudoti. Grinch.exe pavogė Kalėdas.";
+  $("pwin").disabled = true; $("go").disabled = true;
+  $("hacked").hidden = false;
+  startRain();
+}
+/* Grįžti į pradžią: dukart spustelėti apatinį dešinįjį kampą */
+$("corner").addEventListener("dblclick", function () { openGate("restart"); });
+
+/* Slaptažodžio langelis: viršutinis dešinysis kampas (nustatymai) ir apatinis dešinysis kampas hacker ekrane (pradžia) */
+var gateMode = "";
+function openGate(mode) {
+  gateMode = mode;
+  $("gin").value = ""; $("gmsg").className = "msg"; $("gmsg").textContent = "";
+  $("gate").hidden = false;
+  setTimeout(function () { $("gin").focus(); }, 50);
+}
+function closeGate() { $("gate").hidden = true; $("gin").value = ""; gateMode = ""; }
+$("gx").addEventListener("click", closeGate);
+$("gf").addEventListener("submit", function (e) {
+  e.preventDefault();
+  if (!isTeacher($("gin").value)) {
+    $("gmsg").className = "msg bad"; $("gmsg").textContent = "Neteisingas slaptažodis.";
+    $("gin").value = "";
+    return;
+  }
+  var m = gateMode;
+  closeGate();
+  if (m === "teacher" || m === "restart") {
+    if (locked) {
+      stopLockTimer(); locked = false;
+      $("lock").hidden = true; $("lock").classList.remove("fade");
+    }
+    $("teacher").classList.add("over");
+    $("teacher").hidden = false;
+    $("teacher").scrollTop = 0;
+    openPanel();
+    $("tmsg").className = "msg ok"; $("tmsg").textContent = "Sveikas, mokytojau. Gali keisti nustatymus.";
+  }
+});
+$("tr2").addEventListener("dblclick", function () { openGate("teacher"); });
+$("tr3").addEventListener("dblclick", function () { openGate("teacher"); });
+function fmt(ms) {
+  var s = Math.floor(ms / 1000), m = Math.floor(s / 60);
+  return (m < 10 ? "0" : "") + m + ":" + (s % 60 < 10 ? "0" : "") + (s % 60);
+}
+
+var cfg = {};
+function loadCfg() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { saved = null; }
+  cfg = {};
+  for (var k in DEFAULTS) cfg[k] = (saved && typeof saved[k] === "string" && saved[k] !== "") ? saved[k] : DEFAULTS[k];
+}
+function saveCfg(obj) {
+  try { localStorage.setItem(KEY, JSON.stringify(obj)); return true; } catch (e) { return false; }
+}
+
+var started = false, t0 = 0, timer = null, done = false;
+/* Mokinio statistika: saugoma šiame įrenginyje */
+var Stats = (function () {
+  var SK = "grinco-serveris-stats-v1", cur = null, hist = [], live = null;
+  try { var o = JSON.parse(localStorage.getItem(SK) || "null"); if (o) { hist = o.hist || []; cur = o.cur || null; } } catch (e) {}
+  function save() { try { localStorage.setItem(SK, JSON.stringify({ cur: cur, hist: hist })); } catch (e) {} }
+  function blank() { return { att: [], startedAt: 0, end: "", endedAt: 0, elapsed: 0 }; }
+  function newRun() {
+    if (cur && (cur.att.length || cur.startedAt)) { hist.unshift(cur); hist = hist.slice(0, 15); }
+    cur = blank(); save();
+    if (typeof Sync !== "undefined") Sync.reset();
+  }
+  function start() { if (cur && !cur.startedAt) { cur.startedAt = Date.now(); save(); var lm = limitMs(); Sync.patch({ status: "playing", startedAt: cur.startedAt, launchedAt: cur.startedAt, limitMs: lm, deadline: lm > 0 ? cur.startedAt + lm : 0, tries: tries }); } }
+  function attempt(v, ok) { if (!cur) return; cur.att.push({ at: Date.now() - t0, v: String(v).slice(0, 40), ok: ok }); save(); Sync.attempt({ ts: Date.now(), v: String(v).slice(0, 40), ok: ok }); Sync.patch({ tries: ok ? tries : tries - 1 }); }
+  function end(r) { if (cur && !cur.end) { cur.end = r; cur.endedAt = Date.now(); cur.elapsed = cur.startedAt ? Date.now() - t0 : 0; save(); Sync.patch({ status: r, endedAt: cur.endedAt, elapsed: cur.elapsed, unlockedAt: r === "solved" ? cur.endedAt : null }); } }
+  var LABEL = { solved: "Atrakino", tries: "Užblokuota (bandymai baigėsi)", time: "Laikas baigėsi" };
+  function status(c) { return c.end ? LABEL[c.end] : (locked ? "Užrakintas ekranas" : (started ? "Žaidžia" : "Laukia")); }
+  function clk(ms) { try { return new Date(ms).toLocaleTimeString("lt-LT"); } catch (e) { return ""; } }
+  function el(tag, txt, cls) { var n = document.createElement(tag); if (txt != null) n.textContent = txt; if (cls) n.className = cls; return n; }
+  function left(c) {
+    var lim = limitMs();
+    if (lim <= 0) return "be laiko ribos";
+    var used = c.end ? c.elapsed : (started ? Date.now() - t0 : 0);
+    return fmt(Math.max(0, lim - used));
+  }
+  function render() {
+    var box = $("stats"); if (!box) return;
+    box.textContent = "";
+    if (!cur) cur = blank();
+    var kv = el("div", null, "kv");
+    var rows = [
+      ["Būsena", status(cur)],
+      ["Liko laiko", left(cur)],
+      ["Liko bandymų", cur.end === "solved" ? String(tries) : String(tries) + " iš " + MAX_TRIES],
+      ["Pradėjo", cur.startedAt ? clk(cur.startedAt) : "dar nepradėjo"]
+    ];
+    if (cur.end) rows.push(["Baigė", clk(cur.endedAt) + " (praėjo " + fmt(cur.elapsed) + ")"]);
+    rows.forEach(function (r) { kv.appendChild(el("span", r[0])); kv.appendChild(el("span", r[1], r[0] === "Būsena" && cur.end === "solved" ? "sok" : (r[0] === "Būsena" && cur.end ? "sbad" : ""))); });
+    box.appendChild(kv);
+    box.appendChild(el("div", "Įvesti slaptažodžiai", "note"));
+    if (!cur.att.length) { box.appendChild(el("div", "Dar nieko neįvedė.", "note")); }
+    else {
+      var t = el("table"), h = el("tr");
+      ["#", "Po", "Įvedė", ""].forEach(function (x) { h.appendChild(el("th", x)); });
+      t.appendChild(h);
+      cur.att.forEach(function (a, i) {
+        var r = el("tr");
+        r.appendChild(el("td", String(i + 1)));
+        r.appendChild(el("td", fmt(a.at)));
+        r.appendChild(el("td", a.v));
+        r.appendChild(el("td", a.ok ? "teisingas" : "klaida", a.ok ? "sok" : "sbad"));
+        t.appendChild(r);
+      });
+      box.appendChild(t);
+    }
+    if (hist.length) {
+      box.appendChild(el("div", "Ankstesni bandymai", "note"));
+      var t2 = el("table"), h2 = el("tr");
+      ["Pradėta", "Rezultatas", "Bandymų", "Laikas"].forEach(function (x) { h2.appendChild(el("th", x)); });
+      t2.appendChild(h2);
+      hist.forEach(function (c) {
+        var r = el("tr");
+        r.appendChild(el("td", c.startedAt ? clk(c.startedAt) : "-"));
+        r.appendChild(el("td", c.end ? LABEL[c.end] : "nebaigta", c.end === "solved" ? "sok" : "sbad"));
+        r.appendChild(el("td", String(c.att.length)));
+        r.appendChild(el("td", c.end ? fmt(c.elapsed) : "-"));
+        t2.appendChild(r);
+      });
+      box.appendChild(t2);
+    }
+  }
+  function watch() {
+    if (live) return;
+    live = setInterval(function () { if ($("panel").hidden || $("teacher").hidden) return; render(); }, 1000);
+  }
+  function clear() { cur = blank(); hist = []; save(); render(); }
+  watch();
+  return { newRun: newRun, start: start, attempt: attempt, end: end, render: render, clear: clear };
+})();
+
+
+/* Laikmatis: 0 minučių reiškia be ribos (laikas eina į priekį), kitaip skaičiuojama atgal. */
+function limitMs() {
+  var n = parseInt(cfg.mins, 10);
+  if (isNaN(n) || n < 0) n = parseInt(DEFAULTS.mins, 10);
+  return n * 60000;
+}
+function setMeter(p) {
+  $("meter").hidden = (p === null);
+  if (p !== null) $("meterfill").style.width = p + "%";
+}
+function showIdleClock() {
+  var lim = limitMs();
+  $("clock").textContent = lim > 0 ? fmt(lim) : "00:00";
+  $("tlabel").textContent = lim > 0 ? "Liko laiko" : "Praėjo laiko";
+  $("clock").classList.remove("warn");
+  $("timer").classList.remove("warn");
+  setMeter(lim > 0 ? 100 : null);
+}
+function tick() {
+  var el = Date.now() - t0, lim = limitMs();
+  if (lim <= 0) { $("clock").textContent = fmt(el); return; }
+  var left = lim - el;
+  if (left <= 0) {
+    $("clock").textContent = "00:00";
+    $("clock").classList.add("warn");
+    $("timer").classList.add("warn");
+    setMeter(0);
+    stopClock();
+    if (!done) {
+      Stats.end("time");
+      $("msg").className = "msg bad";
+      $("msg").textContent = "LAIKAS BAIGĖSI.";
+      lockOut("time");
+    }
+    return;
+  }
+  $("clock").textContent = fmt(Math.ceil(left / 1000) * 1000);
+  $("clock").classList.toggle("warn", left <= 60000);
+  $("timer").classList.toggle("warn", left <= 60000);
+  setMeter(Math.max(0, left / lim * 100));
+}
+function startClock(at) {
+  if (started || locked) return;
+  started = true; t0 = (typeof at === "number") ? at : Date.now();
+  Stats.start();
+  tick();
+  timer = setInterval(tick, 250);
+}
+function stopClock() { clearInterval(timer); timer = null; }
+var pausedAt = 0, wantPause = false;
+function canPause() { return !done && $("hacked").hidden && (locked || started); }
+function pauseGame() {
+  if (!canPause() || pausedAt) return;
+  pausedAt = Date.now();
+  if (locked) { stopLockTimer(); $("pzclock").textContent = "laukiama paleidimo"; }
+  else { stopClock(); $("pzclock").textContent = $("clock").textContent; }
+  $("pzin").value = ""; $("pzmsg").textContent = "";
+  $("pausescr").hidden = false;
+  closeTeacher();
+  if (started) Sync.patch({ status: "paused", deadline: null, elapsed: pausedAt - t0 });
+}
+function resumeGame() {
+  if (!pausedAt) return;
+  var d = Date.now() - pausedAt;
+  pausedAt = 0;
+  $("pausescr").hidden = true;
+  if (locked) { lockEnd += d; Sync.patch({ status: "locked", lockEnd: lockEnd }); stopLockTimer(); lockTimer = setInterval(lockTick, 250); return; }
+  t0 += d;
+  var lm = limitMs();
+  Sync.patch({ status: "playing", deadline: lm > 0 ? t0 + lm : 0, elapsed: null });
+  tick();
+  if (!done) { timer = setInterval(tick, 250); $("pwin").focus(); }
+}
+/* Pauzę valdo tik mokytojas: per mokytojo skydelį arba nuotoliu visiems mokiniams */
+$("pauseme").addEventListener("click", function () { wantPause = true; pauseGame(); });
+$("pzform").addEventListener("submit", function (e) {
+  e.preventDefault();
+  if (isTeacher($("pzin").value)) { wantPause = false; resumeGame(); }
+  else { $("pzmsg").textContent = "Neteisingas mokytojo slaptažodis."; $("pzin").value = ""; }
+});
+setInterval(function () {
+  $("pauseme").disabled = !canPause() || !!pausedAt;
+  if (wantPause && !pausedAt && canPause()) pauseGame();
+}, 500);
+
+var typeTok = 0;
+function render() {
+  typeTok++;
+  $("instr").textContent = cfg.instr;
+  $("riddle").textContent = cfg.riddle;
+  $("riddle").hidden = cfg.riddle.trim() === "";
+}
+function typeInto(el, text, cps, done) {
+  var tok = typeTok, i = 0;
+  (function step() {
+    if (tok !== typeTok) return;
+    el.textContent = text.slice(0, i);
+    if (i >= text.length) { if (done) done(); return; }
+    var c = document.createElement("span"); c.className = "cur"; c.textContent = "▌";
+    var r = document.createElement("span"); r.className = "rest"; r.textContent = text.slice(i);
+    el.appendChild(c); el.appendChild(r);
+    i++;
+    setTimeout(step, 1000 / cps);
+  })();
+}
+function playTyping() {
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) { render(); return; }
+  typeTok++;
+  var tok = typeTok, riddle = cfg.riddle;
+  $("riddle").textContent = "";
+  var hold = document.createElement("span"); hold.className = "rest"; hold.textContent = riddle;
+  $("riddle").appendChild(hold);
+  typeInto($("instr"), cfg.instr, 60, function () {
+    if (tok === typeTok && riddle) typeInto($("riddle"), riddle, 7, null);
+  });
+}
+
+function resetRun() {
+  Stats.newRun();
+  stopClock();
+  pausedAt = 0; $("pausescr").hidden = true;
+  started = false; done = false;
+  showIdleClock();
+  $("door").classList.remove("solved");
+  $("state").textContent = "UŽRAKINTA";
+  $("pwin").value = ""; $("pwin").disabled = false;
+  $("go").disabled = false;
+  $("msg").textContent = ""; $("msg").className = "msg";
+  $("final").hidden = true;
+  tries = MAX_TRIES;
+  stopRain();
+  $("hacked").hidden = true;
+  renderTries();
+  render();
+}
+
+$("f").addEventListener("submit", function (e) {
+  e.preventDefault();
+  if (done) return;
+  startClock();
+  var f = $("f"), typed = $("pwin").value.trim();
+  if (norm($("pwin").value) === norm(cfg.pw)) {
+    Stats.attempt(typed, true); Stats.end("solved");
+    done = true;
+    stopClock();
+    $("door").classList.add("solved");
+    $("state").textContent = "ATRAKINTA";
+    $("msg").className = "msg ok";
+    $("msg").textContent = "PRIEIGA SUTEIKTA. Durys atsidaro...";
+    $("pwin").disabled = true; $("go").disabled = true;
+    $("finalmsg").textContent = cfg.fin;
+    $("finaltime").textContent = fmt(Date.now() - t0);
+    $("final").hidden = false;
+    setTimeout(function () { $("final").scrollIntoView({ behavior: "smooth", block: "start" }); }, 500);
+  } else {
+    Stats.attempt(typed, false);
+    tries--;
+    renderTries();
+    $("msg").className = "msg bad";
+    f.classList.remove("shake"); void f.offsetWidth; f.classList.add("shake");
+    if (tries <= 0) {
+      $("msg").textContent = "PRIEIGA UŽBLOKUOTA. Bandymai baigėsi.";
+      stopClock();
+      Stats.end("tries");
+      lockOut("tries");
+    } else {
+      $("msg").textContent = "PRIEIGA UŽDRAUSTA. Neteisingas slaptažodis. Liko " + tries + (tries === 1 ? " bandymas." : " bandymai.");
+    }
+  }
+});
+
+
+/* Užrakintas ekranas iki paleidimo. Kai laikas baigiasi, atsiveria durys ir prasideda laikmatis. */
+var locked = false, lockEnd = 0, lockTimer = null;
+function z2(n) { return (n < 10 ? "0" : "") + n; }
+function fmtLong(ms) {
+  var s = Math.ceil(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+  return (h > 0 ? h + ":" + z2(m) : z2(m)) + ":" + z2(x);
+}
+function paintLock() {
+  var d = new Date(), ds = "";
+  $("lkTime").textContent = z2(d.getHours()) + ":" + z2(d.getMinutes());
+  try { ds = d.toLocaleDateString("lt-LT", { weekday: "long", month: "long", day: "numeric" }); } catch (e) { ds = ""; }
+  $("lkDate").textContent = ds;
+}
+function stopLockTimer() { if (lockTimer) clearInterval(lockTimer); lockTimer = null; }
+function lockTick() {
+  if (Date.now() >= lockEnd) { launch(); return; }
+  paintLock();
+}
+function showLock(ms) {
+  var l = $("lock");
+  l.classList.remove("fade");
+  l.hidden = false;
+  locked = true;
+  lockEnd = Date.now() + ms;
+  Sync.patch({ status: "locked", lockEnd: lockEnd });
+  paintLock();
+  stopLockTimer();
+  lockTimer = setInterval(lockTick, 250);
+}
+function launch() {
+  if (!locked) return;
+  stopLockTimer();
+  locked = false;
+  var l = $("lock");
+  l.classList.add("fade");
+  setTimeout(function () { if (!locked) l.hidden = true; }, 750);
+  closeTeacher();
+  window.scrollTo(0, 0);
+  startClock();
+  playTyping();
+  setTimeout(function () { if (!locked) $("pwin").focus(); }, 400);
+}
+function beginSession() {
+  stopLockTimer();
+  locked = false;
+  closeTeacher();
+  window.scrollTo(0, 0);
+  resetRun();
+  var n = parseInt(cfg.delay, 10);
+  if (isNaN(n) || n < 0) n = parseInt(DEFAULTS.delay, 10);
+  if (n > 0) {
+    showLock(n * 60000);
+  } else {
+    $("lock").hidden = true;
+    startClock();
+    playTyping();
+  }
+}
+$("lkW").addEventListener("dblclick", function () { openGate("teacher"); });
+
+/* Stebėjimas realiu laiku per Firebase Realtime Database (REST) */
+var DB_URL = "";
+var DB_CANDIDATES = [
+  "https://prakeiktas-serveris-default-rtdb.europe-west1.firebasedatabase.app",
+  "https://prakeiktas-serveris-default-rtdb.firebaseio.com",
+  "https://prakeiktas-serveris-default-rtdb.asia-southeast1.firebasedatabase.app"
+];
+function detectDb() {
+  return new Promise(function (resolve) {
+    var left = DB_CANDIDATES.length, found = false;
+    function fin() { if (!found && --left === 0) resolve(); }
+    DB_CANDIDATES.forEach(function (u) {
+      var ctl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+      var to = setTimeout(function () { if (ctl) ctl.abort(); }, 6000);
+      fetch(u + "/sessions/ping.json", ctl ? { signal: ctl.signal } : {}).then(function (r) {
+        clearTimeout(to);
+        if (r.ok && !found) { found = true; DB_URL = u; resolve(); } else fin();
+      }).catch(function () { clearTimeout(to); fin(); });
+    });
+  });
+}
+var Sync = (function () {
+  var JK = "grinco-join-v1", TK = "grinco-teacher-code-v1", OK = "grinco-opts-v1", me = null, hb = null, tcode = "", poll = null, last = {};
+  var opts = {}, cntLeave = 0, cntFs = 0, wired = false, seenH = 0, seenB = 0, seenR = 0, seenC = 0, seenP = 0, hpoll = null, hlock = false;
+  function url(p) { return DB_URL.replace(/\/+$/, "") + p + ".json"; }
+  function req(method, p, body) {
+    return fetch(url(p), { method: method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); });
+  }
+  function rid() { var a = new Uint8Array(5); crypto.getRandomValues(a); return Array.prototype.map.call(a, function (x) { return (x % 36).toString(36); }).join(""); }
+  function base() { return "/sessions/" + me.code + "/students/" + me.id; }
+  function patch(o) { if (!me || !DB_URL) return; o.lastSeen = Date.now(); req("PATCH", base(), o).catch(function () {}); }
+  function attempt(a) { if (!me || !DB_URL) return; req("POST", base() + "/attempts", a).catch(function () {}); }
+  function beat() {
+    if (hb) clearInterval(hb);
+    var n = 0;
+    if (hpoll) clearInterval(hpoll);
+    $("helpui").hidden = false;
+    if (!seenH) { seenH = Date.now(); seenB = seenH; seenR = seenH; }
+    hpoll = setInterval(function () {
+      if (!me) return;
+      req("GET", base() + "/help").then(function (h) { if (h && h.ts > seenH) { seenH = h.ts; showHelp(h.text); } }).catch(function () {});
+      req("GET", "/sessions/" + me.code + "/meta").then(function (m) {
+        if (!m) return;
+        if (m.opts) opts = m.opts;
+        if (m.broadcast && m.broadcast.ts > seenB) { seenB = m.broadcast.ts; showHelp(m.broadcast.text); }
+        applyCfg(m, false);
+        if (m.restartAll && m.restartAll > seenR) { seenR = m.restartAll; beginSession(); }
+        if (m.pause && m.pause.ts > seenP) { seenP = m.pause.ts; if (m.pause.on) { wantPause = true; pauseGame(); } else { wantPause = false; resumeGame(); } }
+      }).catch(function () {});
+      req("GET", base() + "/restart").then(function (t) { if (t && t > seenR) { seenR = t; beginSession(); } }).catch(function () {});
+    }, 3000);
+    hb = setInterval(function () {
+      patch({});
+      if (++n % 2 === 0 && me) req("GET", "/sessions/" + me.code + "/meta").then(function (m) { if (m && m.opts) opts = m.opts; }).catch(function () {});
+    }, 5000);
+  }
+  function reset() {
+    cntLeave = 0; cntFs = 0;
+    patch({ leaves: 0, fsExits: 0, status: "joined", attempts: null, startedAt: null, launchedAt: null, unlockedAt: null, endedAt: null, deadline: null, limitMs: null, lockEnd: null, elapsed: null, tries: MAX_TRIES });
+  }
+  function join(code, nick) {
+    code = code.trim().toUpperCase();
+    return req("GET", "/sessions/" + encodeURIComponent(code) + "/meta").then(function (m) {
+      if (!m) throw "nocode";
+      if (m.game && m.game !== GAME) throw "wronggame";
+      applyOpts(m.opts);
+      applyCfg(m, true);
+      me = { code: code, nick: nick, id: rid() };
+      try { sessionStorage.setItem(JK, JSON.stringify(me)); } catch (e) {}
+      patch({ nick: nick, joinedAt: Date.now() });
+      reset(); beat();
+      if (opts.fs) { reqFs(); setTimeout(checkFs, 600); }
+    });
+  }
+  function resume() {
+    try { var o = JSON.parse(sessionStorage.getItem(JK) || "null"); if (o && o.code && o.id) { me = o; beat(); req("GET", "/sessions/" + o.code + "/meta").then(function (m) { applyOpts(m && m.opts); applyCfg(m, false); setTimeout(checkFs, 300); }).catch(function () {}); return true; } } catch (e) {}
+    return false;
+  }
+  function applyCfg(m, first) {
+    var c = m && m.cfg;
+    if (!c || !m.cfgTs || m.cfgTs <= seenC) return;
+    seenC = m.cfgTs;
+    cfg = { delay: String(c.delay != null ? c.delay : DEFAULTS.delay), mins: String(c.mins != null ? c.mins : DEFAULTS.mins), pw: c.pw || DEFAULTS.pw, riddle: c.riddle || DEFAULTS.riddle, instr: c.instr || DEFAULTS.instr, fin: c.fin || DEFAULTS.fin };
+    if (!first) { render(); }
+  }
+  function pushCfg(o) {
+    if (!DB_URL || !tcode) return false;
+    req("PATCH", "/sessions/" + tcode + "/meta", { cfg: o, cfgTs: Date.now() }).catch(function () {});
+    return true;
+  }
+  function restartOne(id) { if (tcode) req("PUT", "/sessions/" + tcode + "/students/" + id + "/restart", Date.now()).catch(function () {}); }
+  function pauseAllSt(on) { if (tcode) req("PATCH", "/sessions/" + tcode + "/meta", { pause: { on: on, ts: Date.now() } }).then(function () { $("livehead").textContent = on ? "Visi mokiniai sustabdyti." : "Visi mokiniai tęsia žaidimą."; }).catch(function () {}); }
+  function restartAllSt() { if (tcode) req("PATCH", "/sessions/" + tcode + "/meta", { restartAll: Date.now() }).catch(function () {}); }
+  function hasCode() { return !!(DB_URL && tcode); }
+  function showHelp(t) {
+    $("helpmsg").textContent = t || "";
+    $("helpbox").hidden = false;
+    try { var c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.frequency.value = 660; g.gain.value = 0.05; o.connect(g); g.connect(c.destination); o.start(); setTimeout(function () { o.stop(); c.close(); }, 180); } catch (e) {}
+  }
+  function askHelp() {
+    if (!me || hlock) return;
+    hlock = true;
+    patch({ helpReq: true, helpAt: Date.now() });
+    $("helpbtn").textContent = "Prašymas išsiųstas";
+    setTimeout(function () { hlock = false; $("helpbtn").textContent = "Pagalba"; }, 20000);
+  }
+  function sendHelp(id, text) {
+    text = String(text || "").trim();
+    if (!text || !tcode) return;
+    req("PUT", "/sessions/" + tcode + "/students/" + id + "/help", { text: text, ts: Date.now() })
+      .then(function () { return req("PATCH", "/sessions/" + tcode + "/students/" + id, { helpReq: false }); })
+      .then(tpoll).catch(function () {});
+  }
+  function sendAll() {
+    var v = $("bcast").value.trim();
+    if (!v || !tcode) return;
+    req("PATCH", "/sessions/" + tcode + "/meta", { broadcast: { text: v, ts: Date.now() } }).then(function () { $("bcast").value = ""; }).catch(function () {});
+  }
+  $("helpbtn").addEventListener("click", askHelp);
+  $("helpok").addEventListener("click", function () { $("helpbox").hidden = true; });
+  $("bcsend").addEventListener("click", sendAll);
+  $("rsall").addEventListener("click", restartAllSt);
+  $("pauseall").addEventListener("click", function () { pauseAllSt(true); });
+  $("resumeall").addEventListener("click", function () { pauseAllSt(false); });
+  /* Mokinio parinktys */
+  function isFs() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  function reqFs() {
+    var e = document.documentElement, f = e.requestFullscreen || e.webkitRequestFullscreen;
+    try {
+      var p = f && f.call(e);
+      if (p && p.then) p.then(function () { try { if (navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock(["Escape", "F11", "F5"]).catch(function () {}); } catch (z) {} }).catch(function () {});
+    } catch (x) {}
+  }
+  function checkFs() { if (me && opts.fs && !isFs()) $("fsreq").hidden = false; }
+  function applyOpts(o) {
+    opts = o || {};
+    if (wired) return;
+    wired = true;
+    document.addEventListener("contextmenu", function (e) { if (me && opts.ctx) e.preventDefault(); });
+    ["paste", "drop"].forEach(function (ev) { $("pwin").addEventListener(ev, function (e) { if (me && opts.paste) e.preventDefault(); }); });
+    document.addEventListener("visibilitychange", function () {
+      if (me && opts.leave && document.hidden) { cntLeave++; patch({ leaves: cntLeave, lastLeave: Date.now() }); }
+    });
+    function fsch() {
+      if (isFs()) { $("fsreq").hidden = true; return; }
+      if (me && opts.fs) { cntFs++; patch({ fsExits: cntFs }); $("fsreq").hidden = false; }
+    }
+    window.addEventListener("beforeunload", function (e) {
+      if (me && opts.fs && !done) { e.preventDefault(); e.returnValue = ""; return ""; }
+    });
+    document.addEventListener("keydown", function (e) {
+      if (!(me && opts.fs)) return;
+      var k = e.key, c = e.ctrlKey || e.metaKey;
+      if (k === "F5" || k === "F11" || k === "F12" || (c && /^[rwtnu]$/i.test(k)) || (c && e.shiftKey && /^[ijcn]$/i.test(k)) || (e.altKey && k === "F4")) e.preventDefault();
+    }, true);
+    document.addEventListener("fullscreenchange", fsch);
+    document.addEventListener("webkitfullscreenchange", fsch);
+    $("fsback").addEventListener("click", function () { reqFs(); setTimeout(function () { if (isFs()) $("fsreq").hidden = true; }, 300); });
+  }
+  function readOpts() { return { fs: $("optfs").checked, ctx: $("optctx").checked, paste: $("optpaste").checked, leave: $("optleave").checked }; }
+  function saveOpts() {
+    var o = readOpts();
+    try { localStorage.setItem(OK, JSON.stringify(o)); } catch (e) {}
+    if (DB_URL && tcode) req("PATCH", "/sessions/" + tcode + "/meta", { opts: o }).catch(function () {});
+  }
+  function loadOptsUi() {
+    var o = {};
+    try { o = JSON.parse(localStorage.getItem(OK) || "{}") || {}; } catch (e) {}
+    $("optfs").checked = !!o.fs; $("optctx").checked = !!o.ctx; $("optpaste").checked = !!o.paste; $("optleave").checked = !!o.leave;
+    ["optfs", "optctx", "optpaste", "optleave"].forEach(function (id) { $(id).onchange = saveOpts; });
+  }
+  function gen() {
+    var al = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", a = new Uint8Array(6), r = "";
+    crypto.getRandomValues(a);
+    for (var i = 0; i < 6; i++) r += al[a[i] % al.length];
+    return r;
+  }
+  function el(tag, txt, cls) { var n = document.createElement(tag); if (txt != null) n.textContent = txt; if (cls) n.className = cls; return n; }
+  function tm(ms) { try { return new Date(ms).toLocaleTimeString("lt-LT"); } catch (e) { return ""; } }
+  var LAB = { paused: "Pauzė", joined: "Prisijungė", locked: "Užrakintas ekranas", playing: "Žaidžia", solved: "ATRAKINO", tries: "Užblokuotas (bandymai)", time: "Laikas baigėsi" };
+  function renderLive() {
+    var head = $("livehead"), tbl = $("livetbl");
+    if (!head) return;
+    var keep = {}, fid = null;
+    Array.prototype.forEach.call(tbl.querySelectorAll("input[data-id]"), function (i) { keep[i.getAttribute("data-id")] = i.value; if (document.activeElement === i) fid = i.getAttribute("data-id"); });
+    head.textContent = "";
+    if (!DB_URL) { head.appendChild(el("div", "Firebase dar neprijungtas. Čia matysis mokiniai, kai bus įrašytas duomenų bazės adresas.", "note")); tbl.textContent = ""; return; }
+    if (!tcode) { head.appendChild(el("div", "Paspausk „Naujas kodas“ ir pasakyk jį mokiniams.", "note")); tbl.textContent = ""; return; }
+    head.appendChild(el("div", "Pamokos kodas", "note"));
+    head.appendChild(el("div", tcode, "live-code"));
+    tbl.textContent = "";
+    var ids = Object.keys(last).sort(function (a, b) { return String(last[a].nick || "").localeCompare(String(last[b].nick || "")); });
+    if (!ids.length) { tbl.appendChild(el("div", "Kol kas niekas neprisijungė.", "note")); return; }
+    var t = el("table"), h = el("tr");
+    ["Mokinys", "Būsena", "Liko laiko", "Bandymai", "Atrakino", "Įvykiai", "Pagalba", "Įvesti slaptažodžiai"].forEach(function (x) { h.appendChild(el("th", x)); });
+    t.appendChild(h);
+    var now = Date.now();
+    ids.forEach(function (id) {
+      var s = last[id], r = el("tr");
+      var alive = s.lastSeen && now - s.lastSeen < 20000;
+      var nc = el("td", (s.nick || "?") + (alive ? "" : " (ryšys nutrūko)"));
+      var rb = el("button", "Iš naujo"); rb.type = "button"; rb.className = "ghost"; rb.style.display = "block";
+      rb.addEventListener("click", function () { restartOne(id); });
+      nc.appendChild(rb);
+      r.appendChild(nc);
+      r.appendChild(el("td", LAB[s.status] || "-", s.status === "solved" ? "sok" : (s.status === "tries" || s.status === "time" ? "sbad" : "")));
+      var left = "-";
+      if (s.limitMs === 0) left = "be ribos";
+      else if (s.status === "playing" && s.deadline) left = fmt(Math.max(0, s.deadline - now));
+      else if (s.limitMs && s.elapsed != null) left = fmt(Math.max(0, s.limitMs - s.elapsed));
+      else if (s.limitMs) left = fmt(s.limitMs);
+      r.appendChild(el("td", left));
+      r.appendChild(el("td", (s.tries != null ? s.tries : MAX_TRIES) + " iš " + MAX_TRIES));
+      r.appendChild(el("td", s.unlockedAt ? tm(s.unlockedAt) + " (po " + fmt(s.elapsed || 0) + ")" : "-", s.unlockedAt ? "sok" : ""));
+      var ev = [];
+      if (s.leaves) ev.push("išėjo iš lango: " + s.leaves);
+      if (s.fsExits) ev.push("išėjo iš pilno ekrano: " + s.fsExits);
+      r.appendChild(el("td", ev.length ? ev.join("; ") : "-", ev.length ? "sbad" : ""));
+      var hc = el("td");
+      if (s.helpReq) hc.appendChild(el("div", "PRAŠO PAGALBOS " + (s.helpAt ? tm(s.helpAt) : ""), "sbad"));
+      var hin = el("input"); hin.type = "text"; hin.placeholder = "Pagalba mokiniui"; hin.maxLength = 300; hin.setAttribute("data-id", id);
+      if (keep[id] != null) hin.value = keep[id];
+      hin.addEventListener("keydown", function (e) { if (e.key === "Enter") { sendHelp(id, hin.value); hin.value = ""; keep[id] = ""; } });
+      var hb2 = el("button", "Siųsti"); hb2.type = "button"; hb2.className = "ghost";
+      hb2.addEventListener("click", function () { sendHelp(id, hin.value); hin.value = ""; keep[id] = ""; });
+      hc.appendChild(hin); hc.appendChild(hb2);
+      if (s.help && s.help.text) hc.appendChild(el("div", "Išsiųsta: " + s.help.text, "note"));
+      r.appendChild(hc);
+      var at = s.attempts ? Object.keys(s.attempts).map(function (k) { return s.attempts[k]; }).sort(function (a, b) { return a.ts - b.ts; }) : [];
+      var td = el("td");
+      if (!at.length) td.textContent = "-";
+      at.forEach(function (a) { td.appendChild(el("div", tm(a.ts) + "  " + a.v + (a.ok ? "  ✓" : "  ✗"), a.ok ? "sok" : "sbad")); });
+      r.appendChild(td);
+      t.appendChild(r);
+    });
+    tbl.appendChild(t);
+    if (fid) { var fi = tbl.querySelector('input[data-id="' + fid + '"]'); if (fi) { fi.focus(); try { fi.setSelectionRange(fi.value.length, fi.value.length); } catch (e) {} } }
+  }
+  function tpoll() {
+    if (!DB_URL || !tcode) { renderLive(); return; }
+    req("GET", "/sessions/" + tcode + "/students").then(function (d) { last = d || {}; renderLive(); }).catch(function () {});
+  }
+  function tstart() {
+    try { tcode = localStorage.getItem(TK) || ""; } catch (e) { tcode = ""; }
+    loadOptsUi();
+    renderLive(); tpoll();
+    if (!poll) poll = setInterval(function () { if ($("panel").hidden || $("teacher").hidden) return; tpoll(); }, 2000);
+  }
+  function newCode() {
+    if (!DB_URL) return;
+    var c = gen();
+    req("PUT", "/sessions/" + c + "/meta", { created: Date.now(), game: GAME, opts: readOpts(), cfg: cfg, cfgTs: Date.now() }).then(function () {
+      tcode = c; last = {};
+      try { localStorage.setItem(TK, c); } catch (e) {}
+      renderLive();
+    }).catch(function () { $("livehead").textContent = "Nepavyko sukurti kodo. Patikrink interneto ryšį ir Firebase taisykles."; });
+  }
+  function delCode() {
+    if (!DB_URL || !tcode) return;
+    req("DELETE", "/sessions/" + tcode).catch(function () {});
+    tcode = ""; last = {};
+    try { localStorage.removeItem(TK); } catch (e) {}
+    renderLive();
+  }
+  return { pushCfg: pushCfg, hasCode: hasCode, restartAllSt: restartAllSt, patch: patch, attempt: attempt, reset: reset, join: join, resume: resume, tstart: tstart, newCode: newCode, delCode: delCode };
+})();
+
+/* Teacher console */
+function openPanel() {
+  $("nd").value = cfg.delay;
+  $("nm").value = cfg.mins;
+  $("np").value = cfg.pw;
+  $("nr").value = cfg.riddle;
+  $("ni").value = cfg.instr;
+  $("nf").value = cfg.fin;
+  $("panel").hidden = false;
+  $("pmsg").textContent = ""; $("pmsg").className = "msg";
+  Stats.render();
+  Sync.tstart();
+}
+$("newcode").addEventListener("click", function () { Sync.newCode(); });
+$("delcode").addEventListener("click", function () { Sync.delCode(); });
+$("clrstats").addEventListener("click", function () { Stats.clear(); });
+$("tf").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var ok = isTeacher($("tin").value);
+  if (ok) {
+    $("tin").value = "";
+    $("tmsg").className = "msg ok";
+    $("tmsg").textContent = "Sveikas, mokytojau. Gali keisti nustatymus.";
+    openPanel();
+  } else {
+    $("tmsg").className = "msg bad";
+    $("tmsg").textContent = "Neteisingas mokytojo slaptažodis.";
+  }
+});
+$("save").addEventListener("click", function () {
+  var np = $("np").value.trim();
+  if (np === "") { $("pmsg").className = "msg bad"; $("pmsg").textContent = "Mokinių slaptažodis negali būti tuščias."; return; }
+  var mins = parseInt($("nm").value, 10);
+  if (isNaN(mins) || mins < 0 || mins > 180) { $("pmsg").className = "msg bad"; $("pmsg").textContent = "Laikas turi būti skaičius nuo 0 iki 180 minučių."; return; }
+  var delay = parseInt($("nd").value, 10);
+  if (isNaN(delay) || delay < 0 || delay > 120) { $("pmsg").className = "msg bad"; $("pmsg").textContent = "Laikas iki paleidimo turi būti skaičius nuo 0 iki 120 minučių."; return; }
+  var obj = { delay: String(delay), mins: String(mins), pw: np, riddle: $("nr").value.trim(), instr: $("ni").value.trim(), fin: $("nf").value.trim() };
+  var ok = saveCfg(obj);
+  loadCfg();
+  resetRun();
+  $("pmsg").className = ok ? "msg ok" : "msg bad";
+  var sent = Sync.pushCfg(obj);
+  $("pmsg").textContent = ok ? (sent ? "Išsaugota ir išsiųsta prisijungusiems mokiniams. Slaptažodis, laikas ir tekstai pasikeis jiems iškart, o laikas iki paleidimo galios po „Visiems iš naujo“." : "Išsaugota. Paspausk „Pradėti iš naujo“, kad paleistum visą eigą su naujais nustatymais.") : "Šioje naršyklėje išsaugoti nepavyko. Pakeitimai veiks tik kol puslapis atidarytas.";
+  if (!ok) { cfg = { delay: obj.delay, mins: obj.mins, pw: obj.pw, riddle: obj.riddle || DEFAULTS.riddle, instr: obj.instr || DEFAULTS.instr, fin: obj.fin || DEFAULTS.fin }; resetRun(); }
+});
+$("restart").addEventListener("click", function () {
+  beginSession();
+  $("pmsg").className = "msg ok"; $("pmsg").textContent = "Viskas paleista iš naujo.";
+});
+$("launchnow").addEventListener("click", function () {
+  if (locked) { launch(); }
+  else if (!started && !done) { startClock(); }
+  closeTeacher();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+$("defaults").addEventListener("click", function () {
+  try { localStorage.removeItem(KEY); } catch (e) {}
+  loadCfg(); resetRun(); openPanel();
+  $("pmsg").className = "msg ok"; $("pmsg").textContent = "Atstatyti pradiniai nustatymai.";
+});
+function closeTeacher() {
+  $("panel").hidden = true;
+  $("tmsg").className = "msg"; $("tmsg").textContent = "";
+  $("tin").value = "";
+  $("teacher").hidden = true;
+  $("teacher").classList.remove("over");
+}
+$("logout").addEventListener("click", function () {
+  closeTeacher();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+/* Mokytojo nustatymai paslėpti. Juos atidaro 5 greiti paspaudimai ant eglutės, tada reikia mokytojo slaptažodžio. */
+var skullClicks = 0, skullTimer = null;
+$("skull").addEventListener("click", function () {
+  skullClicks++;
+  clearTimeout(skullTimer);
+  skullTimer = setTimeout(function () { skullClicks = 0; }, 1500);
+  if (skullClicks >= 5) {
+    skullClicks = 0;
+    $("teacher").hidden = false;
+    $("teacher").scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(function () { $("tin").focus(); }, 400);
+  }
+});
+
+/* Pilnas ekranas */
+(function () {
+  var el = document.documentElement, b = $("fs");
+  var req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!req) return;
+  b.hidden = false;
+  function isFs() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  function label() { b.textContent = isFs() ? "Išjungti pilną ekraną" : "Per visą ekraną"; }
+  b.addEventListener("click", function () {
+    try {
+      if (isFs()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+      else { var p = req.call(el); if (p && p.catch) p.catch(function () {}); }
+    } catch (e) {}
+  });
+  document.addEventListener("fullscreenchange", label);
+  document.addEventListener("webkitfullscreenchange", label);
+  label();
+})();
+
+/* Hakerio stiliaus šonai: atsitiktinis kodas */
+(function () {
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function hex(n) { var s = ""; for (var i = 0; i < n; i++) s += "0123456789ABCDEF".charAt(rnd(16)); return s; }
+  var words = ["> ssh root@srv", "[ OK ] port 22", "[WARN] grinch.exe", "> sudo kill -9", "ACCESS DENIED", "> decrypt --key", "[ OK ] firewall", "> ping 10.0.0.13", "[FAIL] dovanos.db", "> unfreeze --roges", "[ OK ] uplink"];
+  var L = [], R = [];
+  for (var i = 0; i < 60; i++) {
+    L.push(hex(4) + " " + hex(4) + " " + hex(4));
+    R.push(rnd(3) === 0 ? words[rnd(words.length)] : hex(2) + ":" + hex(2) + ":" + hex(2) + " " + hex(4));
+  }
+  $("sideL").textContent = L.join("\n") + "\n" + L.join("\n");
+  $("sideR").textContent = R.join("\n") + "\n" + R.join("\n");
+})();
+
+loadCfg();
+render();
+$("jf").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var code = $("jcode").value.trim(), nick = $("jnick").value.trim();
+  if (isTeacher(code)) {
+    $("jcode").value = ""; $("jnick").value = ""; $("jmsg").textContent = "";
+    $("teacher").classList.add("over");
+    $("teacher").hidden = false;
+    $("teacher").scrollTop = 0;
+    openPanel();
+    $("tmsg").className = "msg ok"; $("tmsg").textContent = "Sveikas, mokytojau.";
+    return;
+  }
+  if (!code || !nick) { $("jmsg").className = "msg bad"; $("jmsg").textContent = "Įvesk kodą ir slapyvardį."; return; }
+  $("jmsg").className = "msg"; $("jmsg").textContent = "Jungiamasi...";
+  Sync.join(code, nick).then(function () {
+    $("join").hidden = true;
+    beginSession();
+  }).catch(function (err) {
+    $("jmsg").className = "msg bad";
+    $("jmsg").textContent = err === "nocode" ? "Tokio kodo nėra." : (err === "wronggame" ? "Šis kodas skirtas žaidimui „Prakeiktas serveris“. Grįžk ir pasirink jį." : "Nepavyko prisijungti. Patikrink ryšį.");
+  });
+});
+detectDb().then(function () {
+  if (DB_URL && !Sync.resume()) { $("join").hidden = false; setTimeout(function () { $("jcode").focus(); }, 100); }
+  else { beginSession(); }
+});
+</script>
+
+</body>
+</html>
