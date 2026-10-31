@@ -1353,7 +1353,10 @@ $("jf").addEventListener("submit", function (e) {
 });
 /* Žaidimas be prisijungimo: be pamokos kodo, be stebėjimo, prasideda iš karto */
 var SOLOK = "solo-" + GAME, solo = false;
-try { solo = sessionStorage.getItem(SOLOK) === "1"; } catch (e) {}
+try {
+  if (location.hash === "#solo") { sessionStorage.setItem(SOLOK, "1"); sessionStorage.removeItem("grinco-join-v1"); }
+  solo = sessionStorage.getItem(SOLOK) === "1";
+} catch (e) { solo = location.hash === "#solo"; }
 $("solobtn").addEventListener("click", function () {
   solo = true;
   try { sessionStorage.setItem(SOLOK, "1"); } catch (e) {}

@@ -46,12 +46,15 @@ h1 { margin: 0; font-size: clamp(28px, 6vw, 48px); font-weight: 800; letter-spac
   padding: clamp(20px, 3.5vw, 36px); border: 1px solid var(--line); text-decoration: none; color: var(--ink);
   transition: transform .2s, border-color .2s, box-shadow .2s; overflow: hidden;
 }
-.door:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
 .door .tag { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; font-weight: 800; }
 .door h2 { margin: 0; font-weight: 400; line-height: .95; font-size: clamp(38px, 6.4vw, 68px); text-wrap: balance; }
 .door p { margin: 0; max-width: 46ch; }
 .door pre { margin: 0; font-size: 11px; line-height: 1.15; white-space: pre; align-self: flex-end; opacity: .9; }
-.door .go { margin-top: auto; align-self: flex-start; padding: 12px 20px; font-weight: 800; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; }
+.door .acts { margin-top: auto; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.door .go, .door .solo { padding: 12px 20px; font-weight: 800; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; text-decoration: none; border: 1px solid transparent; }
+.door .solo { background: transparent; color: var(--ink); border-color: var(--line); }
+.door .solo:hover { border-color: var(--ink); }
+.door a:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
 .door:hover { transform: translateY(-3px); }
 
 .h { background: radial-gradient(70% 50% at 100% 0%, rgba(255,122,26,.18), transparent 70%), var(--h-bg); }
@@ -78,10 +81,10 @@ h1 { margin: 0; font-size: clamp(28px, 6vw, 48px); font-weight: 800; letter-spac
   <div class="prompt">mokinys@mokykla:~# <b>ls /serveriai</b><span class="cur" aria-hidden="true"></span></div>
   <header>
     <h1>Pasirink serverį</h1>
-    <p class="sub">Mokytojas pasakys, į kurį žaidimą jungiamės. Pasirink jį, tada įvesk pamokos kodą ir slapyvardį.</p>
+    <p class="sub">Mokytojas pasakys, į kurį žaidimą jungiamės. Pasirink jį ir įvesk pamokos kodą. Namuose gali žaisti ir be prisijungimo.</p>
   </header>
   <nav class="doors" aria-label="Žaidimai">
-    <a class="door h" href="helovinas.html">
+    <div class="door h">
       <span class="tag">Helovinas · virusas Vaiduoklis.exe</span>
       <h2>Prakeiktas serveris</h2>
       <p>Mokyklos serveris užsikrėtė virusu ir užrakino duris. Išspręsk mįslę, kol jis nesugedo galutinai.</p>
@@ -93,9 +96,9 @@ h1 { margin: 0; font-size: clamp(28px, 6vw, 48px); font-weight: 800; letter-spac
   `. .---. .'
     | |||| |
     '-'--'-'</pre>
-      <span class="go">Įeiti →</span>
-    </a>
-    <a class="door x" href="kaledos.html">
+      <div class="acts"><a class="go" href="helovinas.html">Įeiti su pamokos kodu →</a><a class="solo" href="helovinas.html#solo">Žaisti be prisijungimo</a></div>
+    </div>
+    <div class="door x">
       <span class="tag">Kalėdos · virusas Grinch.exe</span>
       <h2>Grinčo serveris</h2>
       <p>Grinčas užrakino Šiaurės ašigalio dovanų sandėlį. Atrakink duris, kol rogės dar spėja pakilti.</p>
@@ -107,8 +110,8 @@ h1 { margin: 0; font-size: clamp(28px, 6vw, 48px); font-weight: 800; letter-spac
      /.'.'.\
     /'.''.'.\
     ^^^[_]^^^</pre>
-      <span class="go">Įeiti →</span>
-    </a>
+      <div class="acts"><a class="go" href="kaledos.html">Įeiti su pamokos kodu →</a><a class="solo" href="kaledos.html#solo">Žaisti be prisijungimo</a></div>
+    </div>
   </nav>
   <p class="note">Pamokos kodas veikia tik tame žaidime, kuriame jį sukūrė mokytojas.</p>
 </div>
