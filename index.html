@@ -112,5 +112,9 @@ h1 { margin: 0; font-size: clamp(28px, 6vw, 48px); font-weight: 800; letter-spac
   </nav>
   <p class="note">Pamokos kodas veikia tik tame žaidime, kuriame jį sukūrė mokytojas.</p>
 </div>
+<script>
+/* Grįžus čia, žaidimai vėl paklaus pamokos kodo */
+try { sessionStorage.removeItem("solo-helovinas"); sessionStorage.removeItem("solo-kaledos"); } catch (e) {}
+</script>
 </body>
 </html>

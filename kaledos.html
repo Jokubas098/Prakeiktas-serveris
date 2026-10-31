@@ -199,6 +199,7 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 .join-box h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 34px; color: var(--pumpkin); }
 .join-box form { display: flex; flex-direction: column; gap: 10px; }
 .join-box input { text-transform: none; }
+.join-box .field { flex: none; }
 .helpui { position: fixed; left: 12px; bottom: 12px; z-index: 80; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; max-width: min(360px, calc(100vw - 24px)); }
 .helpui .hbtn { padding: 8px 14px; font-size: 13px; }
 .helpbox { background: var(--void); border: 1px solid var(--pumpkin); box-shadow: 0 0 24px rgba(244,194,91,.35); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; animation: flick 3s steps(1) 1; }
@@ -310,6 +311,8 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 .pz-form { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; width: 100%; }
 .pz-form input { flex: 1 1 160px; min-width: 0; font: inherit; padding: 10px 12px; background: var(--void); color: var(--ink); border: 1px solid var(--line); }
 .pause-box b { color: var(--pumpkin); }
+.solo { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 14px; }
+.solo span { font-size: 12px; color: var(--dim); }
 .backlink { color: var(--dim); font-size: 13px; text-decoration: underline; align-self: flex-start; }
 .backlink:hover { color: var(--ink); }
 </style>
@@ -341,6 +344,7 @@ button.mini { padding: 5px 10px; font-size: 11px; }
       <button type="submit">Prisijungti</button>
     </form>
     <div class="msg" id="jmsg" role="status"></div>
+    <div class="solo"><button type="button" class="ghost" id="solobtn">Žaisti be prisijungimo</button><span>Mokytojas nematys tavo rezultatų.</span></div>
     <a class="backlink" href="./">← Pasirinkti kitą žaidimą</a>
   </div>
 </div>
@@ -926,7 +930,7 @@ function beginSession() {
   resetRun();
   var n = parseInt(cfg.delay, 10);
   if (isNaN(n) || n < 0) n = parseInt(DEFAULTS.delay, 10);
-  if (n > 0) {
+  if (n > 0 && !solo) {
     showLock(n * 60000);
   } else {
     $("lock").hidden = true;
@@ -1347,8 +1351,17 @@ $("jf").addEventListener("submit", function (e) {
     $("jmsg").textContent = err === "nocode" ? "Tokio kodo nėra." : (err === "wronggame" ? "Šis kodas skirtas žaidimui „Prakeiktas serveris“. Grįžk ir pasirink jį." : "Nepavyko prisijungti. Patikrink ryšį.");
   });
 });
+/* Žaidimas be prisijungimo: be pamokos kodo, be stebėjimo, prasideda iš karto */
+var SOLOK = "solo-" + GAME, solo = false;
+try { solo = sessionStorage.getItem(SOLOK) === "1"; } catch (e) {}
+$("solobtn").addEventListener("click", function () {
+  solo = true;
+  try { sessionStorage.setItem(SOLOK, "1"); } catch (e) {}
+  $("join").hidden = true;
+  beginSession();
+});
 detectDb().then(function () {
-  if (DB_URL && !Sync.resume()) { $("join").hidden = false; setTimeout(function () { $("jcode").focus(); }, 100); }
+  if (DB_URL && !solo && !Sync.resume()) { $("join").hidden = false; setTimeout(function () { $("jcode").focus(); }, 100); }
   else { beginSession(); }
 });
 </script>
