@@ -435,12 +435,12 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 
   <section class="sms" id="sms" hidden aria-labelledby="smsh">
     <div class="sms-top"><div class="sms-ava" aria-hidden="true">G</div><div class="sms-who"><b id="smsh">Grinčas</b><small>+370 6GR INCH</small></div></div>
-    <p class="sms-task">Durys atrakintos, bet Grinčas dar kontroliuoja serverį. Parašyk jam SMS žinutę ir išsiųsk, kad pabėgtum!</p>
+    <p class="sms-task">Durys atrakintos, bet Grinčas dar kontroliuoja serverį. Nusiųsk Grinčui SMS, kad pabėgtum!</p>
     <div class="sms-log" id="smslog" aria-live="polite">
       <div class="bub them">Ha! Manai, kad atspėjai slaptažodį ir viskas? Na, parašyk man, jei drįsti...</div>
     </div>
     <form class="sms-form" id="smsf" autocomplete="off">
-      <textarea id="smsin" rows="2" maxlength="160" placeholder="Rašyk SMS Grinčui..." aria-label="SMS žinutė Grinčui"></textarea>
+      <textarea id="smsin" rows="2" maxlength="160" placeholder="Rašyk žinutę..." aria-label="SMS žinutė Grinčui"></textarea>
       <button type="submit" id="smsgo" aria-label="Siųsti SMS">➤</button>
     </form>
   </section>
@@ -940,6 +940,17 @@ function sendSms() {
   if (!smsStage || done) return;
   var text = $("smsin").value.trim();
   if (!text) { $("smsin").focus(); return; }
+  if (text.toUpperCase().replace(/[^A-ZĄČĘĖĮŠŲŪŽ]/g, "") !== "SMS") {
+    $("smsin").value = "";
+    smsBubble(text, "me");
+    Sync.attempt({ ts: Date.now(), v: ("SMS: " + text).slice(0, 40), ok: false });
+    $("smsin").disabled = true; $("smsgo").disabled = true;
+    smsTimers.push(setTimeout(function () {
+      smsBubble("Cha cha! Ne tai. Aš sakiau: nusiųsk man SMS.", "them");
+      if (!done) { $("smsin").disabled = false; $("smsgo").disabled = false; $("smsin").focus(); }
+    }, 900));
+    return;
+  }
   done = true;
   stopClock();
   var took = Date.now() - t0;
