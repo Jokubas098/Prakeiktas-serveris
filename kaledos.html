@@ -205,6 +205,21 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 .bub.me { align-self: flex-end; background: #2f7d4a; color: #fff; border-bottom-right-radius: 4px; }
 .bub.typing { color: var(--dim); font-style: italic; }
 .sms-meta { align-self: flex-end; font-size: 11px; color: var(--dim); margin-top: -4px; }
+.mz { display: flex; flex-direction: column; gap: 10px; }
+.mz-line { min-height: 54px; background: var(--void); border: 1px solid var(--line); border-radius: 14px; padding: 6px 12px; display: flex; flex-direction: column; justify-content: center; }
+.mz-sym { font-size: 22px; font-weight: 800; letter-spacing: .12em; color: var(--pumpkin); min-height: 1.2em; overflow-wrap: anywhere; }
+.mz-txt { font-size: 13px; color: var(--cyan); letter-spacing: .2em; min-height: 1.2em; }
+.mz-key { min-height: 96px; border-radius: 18px; border: none; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; background: radial-gradient(ellipse at 50% 30%, #f6d37f, var(--pumpkin) 70%); color: #2a1d05; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; box-shadow: 0 6px 0 #8a6416; transition: transform .05s, box-shadow .05s; font-family: var(--display); }
+.mz-key b { font-size: 22px; font-weight: 800; }
+.mz-key small { font-family: var(--mono); font-size: 12px; opacity: .8; }
+.mz-key.down { transform: translateY(5px); box-shadow: 0 1px 0 #8a6416; }
+.mz-key:disabled { opacity: .45; cursor: default; }
+.mz-key:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+.mz-row { display: flex; gap: 8px; justify-content: space-between; }
+.mz-row button { flex: 1; }
+#smsgo { background: #2f7d4a; color: #fff; border: none; border-radius: 12px; padding: 10px 14px; font: inherit; font-weight: 800; cursor: pointer; }
+#smsgo:disabled, #mzdel:disabled { opacity: .45; cursor: default; }
+.mz-hint { margin: 0; font-size: 12px; color: var(--dim); }
 .sms-form { display: flex; gap: 8px; align-items: flex-end; }
 .sms-form textarea { flex: 1; min-width: 0; resize: none; background: var(--void); color: var(--ink); border: 1px solid var(--line); border-radius: 18px; padding: 9px 14px; font-family: var(--mono); font-size: 15px; line-height: 1.4; }
 .sms-form textarea:focus { outline: none; border-color: var(--cyan); }
@@ -435,14 +450,21 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 
   <section class="sms" id="sms" hidden aria-labelledby="smsh">
     <div class="sms-top"><div class="sms-ava" aria-hidden="true">G</div><div class="sms-who"><b id="smsh">Grinčas</b><small>+370 6GR INCH</small></div></div>
-    <p class="sms-task">Durys atrakintos, bet Grinčas dar kontroliuoja serverį. Nusiųsk Grinčui SMS, kad pabėgtum!</p>
+    <p class="sms-task">Durys atrakintos, bet Grinčas dar kontroliuoja serverį. Grinčas supranta tik Morzės kodą. Nusiųsk jam SMS Morzės kodu, kad pabėgtum!</p>
     <div class="sms-log" id="smslog" aria-live="polite">
       <div class="bub them">Ha! Manai, kad atspėjai slaptažodį ir viskas? Na, parašyk man, jei drįsti...</div>
     </div>
-    <form class="sms-form" id="smsf" autocomplete="off">
-      <textarea id="smsin" rows="2" maxlength="160" placeholder="Rašyk žinutę..." aria-label="SMS žinutė Grinčui"></textarea>
-      <button type="submit" id="smsgo" aria-label="Siųsti SMS">➤</button>
-    </form>
+    <div class="mz" id="mz">
+      <div class="mz-line"><span class="mz-sym" id="mzsym" aria-live="polite"></span><span class="mz-txt" id="mztxt"></span></div>
+      <button type="button" class="mz-key" id="mzkey" aria-label="Morzės raktas: trumpai spausk taškui, ilgai brūkšniui">
+        <b>SPAUSK</b><small>trumpai = · &nbsp; ilgai = −</small>
+      </button>
+      <div class="mz-row">
+        <button type="button" class="ghost" id="mzdel">⌫ Trinti</button>
+        <button type="button" id="smsgo" aria-label="Siųsti SMS">Siųsti ➤</button>
+      </div>
+      <p class="mz-hint">Galima spausti ir tarpo klavišą. Palauk akimirką tarp raidžių.</p>
+    </div>
   </section>
 
   <section class="final" id="final" hidden>
@@ -906,7 +928,7 @@ $("f").addEventListener("submit", function (e) {
     $("msg").textContent = "PRIEIGA SUTEIKTA. Liko paskutinis žingsnis: nusiųsk SMS Grinčui.";
     $("pwin").disabled = true; $("go").disabled = true;
     $("sms").hidden = false;
-    setTimeout(function () { $("sms").scrollIntoView({ behavior: "smooth", block: "start" }); $("smsin").focus(); }, 400);
+    setTimeout(function () { $("sms").scrollIntoView({ behavior: "smooth", block: "start" }); $("mzkey").focus(); }, 400);
   } else {
     Stats.attempt(typed, false);
     tries--;
@@ -925,39 +947,73 @@ $("f").addEventListener("submit", function (e) {
 });
 
 
-/* Paskutinis žingsnis: bet kokia SMS žinutė Grinčui, tada pabėgimas */
-var smsStage = false, smsTimers = [];
+/* Paskutinis žingsnis: SMS Grinčui Morzės kodu, tada pabėgimas */
+var smsStage = false, smsTimers = [], smsBusy = false;
+var MZ = { ".-":"A","-...":"B","-.-.":"C","-..":"D",".":"E","..-.":"F","--.":"G","....":"H","..":"I",".---":"J","-.-":"K",".-..":"L","--":"M","-.":"N","---":"O",".--.":"P","--.-":"Q",".-.":"R","...":"S","-":"T","..-":"U","...-":"V",".--":"W","-..-":"X","-.--":"Y","--..":"Z" };
+var MZ_UNIT = 200;                 /* trumpesnis nei 2 vienetai (400 ms) - taškas, ilgesnis - brūkšnys */
+var mzLetters = [], mzBuf = "", mzDown = 0, mzGap = null, mzAc = null, mzOsc = null, mzGain = null;
+function mzPretty(c) { return c.replace(/\./g, "·").replace(/-/g, "−"); }
+function mzRender() {
+  var parts = mzLetters.map(function (c) { return mzPretty(c); });
+  if (mzBuf) parts.push(mzPretty(mzBuf));
+  $("mzsym").textContent = parts.join("  ");
+  $("mztxt").textContent = mzLetters.map(function (c) { return MZ[c] || "?"; }).join("");
+}
+function mzTone(on) {
+  try {
+    if (!mzAc) { mzAc = new (window.AudioContext || window.webkitAudioContext)(); mzGain = mzAc.createGain(); mzGain.gain.value = 0; mzGain.connect(mzAc.destination); mzOsc = mzAc.createOscillator(); mzOsc.frequency.value = 650; mzOsc.connect(mzGain); mzOsc.start(); }
+    if (mzAc.state === "suspended") mzAc.resume();
+    mzGain.gain.setTargetAtTime(on ? 0.06 : 0, mzAc.currentTime, 0.005);
+  } catch (e) {}
+}
+function mzCanUse() { return smsStage && !done && !smsBusy && !pausedAt; }
+function mzPress() { if (!mzCanUse() || mzDown) return; clearTimeout(mzGap); mzDown = Date.now(); $("mzkey").classList.add("down"); mzTone(true); }
+function mzRelease() {
+  if (!mzDown) return;
+  var d = Date.now() - mzDown; mzDown = 0;
+  $("mzkey").classList.remove("down"); mzTone(false);
+  if (d < 15 || !mzCanUse()) return;
+  mzBuf += d < 2 * MZ_UNIT ? "." : "-";
+  if (mzBuf.length > 6) mzBuf = mzBuf.slice(-6);
+  mzRender();
+  mzGap = setTimeout(mzCommit, 4 * MZ_UNIT);
+}
+function mzCommit() { clearTimeout(mzGap); if (mzBuf) { mzLetters.push(mzBuf); mzBuf = ""; if (mzLetters.length > 12) mzLetters.shift(); mzRender(); } }
+function mzClear() { clearTimeout(mzGap); mzLetters = []; mzBuf = ""; mzRender(); }
+function mzEnable(on) { $("mzkey").disabled = !on; $("mzdel").disabled = !on; $("smsgo").disabled = !on; }
 function smsBubble(text, cls) { var b = document.createElement("div"); b.className = "bub " + cls; b.textContent = text; $("smslog").appendChild(b); $("smslog").scrollTop = $("smslog").scrollHeight; return b; }
 function resetSms() {
-  smsStage = false;
+  smsStage = false; smsBusy = false;
   (smsTimers || []).forEach(clearTimeout); smsTimers = [];
   $("sms").hidden = true;
   $("smslog").textContent = "";
   smsBubble("Ha! Manai, kad atspėjai slaptažodį ir viskas? Na, parašyk man, jei drįsti...", "them");
-  $("smsin").value = ""; $("smsin").disabled = false; $("smsgo").disabled = false;
+  mzDown = 0; $("mzkey").classList.remove("down"); mzTone(false);
+  mzClear(); mzEnable(true);
 }
 function sendSms() {
-  if (!smsStage || done) return;
-  var text = $("smsin").value.trim();
-  if (!text) { $("smsin").focus(); return; }
-  if (text.toUpperCase().replace(/[^A-ZĄČĘĖĮŠŲŪŽ]/g, "") !== "SMS") {
-    $("smsin").value = "";
-    smsBubble(text, "me");
-    Sync.attempt({ ts: Date.now(), v: ("SMS: " + text).slice(0, 40), ok: false });
-    $("smsin").disabled = true; $("smsgo").disabled = true;
+  if (!smsStage || done || smsBusy) return;
+  mzCommit();
+  if (!mzLetters.length) { $("mzkey").focus(); return; }
+  var code = mzLetters.map(mzPretty).join(" "), word = mzLetters.map(function (c) { return MZ[c] || "?"; }).join("");
+  smsBubble(code, "me");
+  mzClear();
+  if (word !== "SMS") {
+    Sync.attempt({ ts: Date.now(), v: ("SMS: " + word).slice(0, 40), ok: false });
+    smsBusy = true; mzEnable(false);
     smsTimers.push(setTimeout(function () {
-      smsBubble("Cha cha! Ne tai. Aš sakiau: nusiųsk man SMS.", "them");
-      if (!done) { $("smsin").disabled = false; $("smsgo").disabled = false; $("smsin").focus(); }
+      smsBubble("Cha cha! Nieko nesupratau. Aš laukiu SMS... Morzės kodu.", "them");
+      smsBusy = false;
+      if (!done) { mzEnable(true); $("mzkey").focus(); }
     }, 900));
     return;
   }
   done = true;
   stopClock();
   var took = Date.now() - t0;
-  $("smsin").value = ""; $("smsin").disabled = true; $("smsgo").disabled = true;
-  smsBubble(text, "me");
+  mzEnable(false);
   var meta = document.createElement("div"); meta.className = "sms-meta"; meta.textContent = "Išsiųsta"; $("smslog").appendChild(meta);
-  Sync.attempt({ ts: Date.now(), v: ("SMS: " + text).slice(0, 40), ok: true });
+  Sync.attempt({ ts: Date.now(), v: "SMS: SMS", ok: true });
   Stats.end("solved");
   smsTimers.push(setTimeout(function () { meta.textContent = "Pristatyta ✓"; }, 600));
   var typing;
@@ -973,8 +1029,21 @@ function sendSms() {
     $("final").scrollIntoView({ behavior: "smooth", block: "start" });
   }, 3800));
 }
-$("smsf").addEventListener("submit", function (e) { e.preventDefault(); sendSms(); });
-$("smsin").addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendSms(); } });
+$("mzkey").addEventListener("pointerdown", function (e) { e.preventDefault(); try { $("mzkey").setPointerCapture(e.pointerId); } catch (z) {} mzPress(); });
+["pointerup", "pointercancel"].forEach(function (ev) { $("mzkey").addEventListener(ev, mzRelease); });
+$("mzkey").addEventListener("contextmenu", function (e) { e.preventDefault(); });
+$("mzkey").addEventListener("click", function (e) { e.preventDefault(); });
+document.addEventListener("keydown", function (e) {
+  if (!smsStage || done) return;
+  var tg = e.target && e.target.tagName;
+  if (tg === "INPUT" || tg === "TEXTAREA") return;
+  if (e.code === "Space") { e.preventDefault(); if (!e.repeat) mzPress(); }
+  else if (e.key === "Enter") { e.preventDefault(); sendSms(); }
+  else if (e.key === "Backspace") { e.preventDefault(); if (mzBuf) mzBuf = ""; else mzLetters.pop(); mzRender(); }
+});
+document.addEventListener("keyup", function (e) { if (e.code === "Space" && smsStage) { e.preventDefault(); mzRelease(); } });
+$("mzdel").addEventListener("click", function () { clearTimeout(mzGap); if (mzBuf) mzBuf = ""; else mzLetters.pop(); mzRender(); });
+$("smsgo").addEventListener("click", sendSms);
 
 /* Užrakintas ekranas iki paleidimo. Kai laikas baigiasi, atsiveria durys ir prasideda laikmatis. */
 var locked = false, lockEnd = 0, lockTimer = null;
