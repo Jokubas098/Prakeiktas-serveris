@@ -1003,9 +1003,10 @@ function mzRelease() {
 function mzCommit() { clearTimeout(mzGap); if (mzBuf) { mzLetters.push(mzBuf); mzBuf = ""; if (mzLetters.length > 12) mzLetters.shift(); mzRender(); } }
 function mzClear() { clearTimeout(mzGap); mzLetters = []; mzBuf = ""; mzRender(); }
 function mzEnable(on) { $("mzkey").disabled = !on; $("mzdel").disabled = !on; $("smsgo").disabled = !on; }
-var JAM_SEC = 20, jamTimer = null;
+var JAM_SEC = 20, jamTimer = null, jamCount = 0;   /* 1 klaida 20 s, 2 klaida 40 s, 3 klaida 60 s... */
+function jamSecs() { return JAM_SEC * jamCount; }
 function jamStart() {
-  var left = JAM_SEC;
+  var left = jamSecs();
   $("jamn").textContent = left;
   $("jam").hidden = false; document.body.classList.add("jammed");
   clearInterval(jamTimer);
@@ -1026,7 +1027,7 @@ function smsBubble(text, cls) { var b = document.createElement("div"); b.classNa
 function resetSms() {
   smsStage = false; smsBusy = false;
   (smsTimers || []).forEach(clearTimeout); smsTimers = [];
-  clearInterval(jamTimer); jamTimer = null; $("jam").hidden = true; document.body.classList.remove("jammed");
+  clearInterval(jamTimer); jamTimer = null; jamCount = 0; $("jam").hidden = true; document.body.classList.remove("jammed");
   $("sms").hidden = true;
   $("smslog").textContent = "";
   smsBubble("Ha! Manai, kad atspėjai slaptažodį ir viskas? Na, parašyk man, jei drįsti...", "them");
@@ -1044,7 +1045,10 @@ function sendSms() {
     Sync.attempt({ ts: Date.now(), v: ("SMS: " + word).slice(0, 40), ok: false });
     smsBusy = true; mzEnable(false);
     smsTimers.push(setTimeout(function () {
-      smsBubble("Cha cha! Nieko nesupratau. Ryšį trukdau " + JAM_SEC + " sekundžių!", "them");
+      jamCount++;
+      smsBubble(jamCount === 1
+        ? "Cha cha! Nieko nesupratau. Ryšį trukdau " + jamSecs() + " sekundžių!"
+        : "Vėl nesąmonės! Šįkart trukdau ilgiau: " + jamSecs() + " sekundžių!", "them");
       jamStart();
     }, 700));
     return;
