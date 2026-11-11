@@ -220,6 +220,19 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 #smsgo { background: #2f7d4a; color: #fff; border: none; border-radius: 12px; padding: 10px 14px; font: inherit; font-weight: 800; cursor: pointer; }
 #smsgo:disabled, #mzdel:disabled { opacity: .45; cursor: default; }
 .mz-hint { margin: 0; font-size: 12px; color: var(--dim); }
+.jam { position: fixed; inset: 0; z-index: 105; display: grid; place-items: center; padding: 16px; background: rgba(6,10,20,.82); overflow: hidden; animation: jamshake .18s steps(2) infinite; }
+.jam::before { content: ""; position: absolute; inset: -20%; background: repeating-linear-gradient(0deg, rgba(255,255,255,.07) 0 2px, transparent 2px 4px), repeating-linear-gradient(90deg, rgba(159,212,245,.05) 0 1px, transparent 1px 3px); animation: jamnoise .12s steps(3) infinite; pointer-events: none; }
+.jam::after { content: ""; position: absolute; left: 0; right: 0; height: 18%; background: linear-gradient(transparent, rgba(255,80,80,.18), rgba(80,220,255,.18), transparent); animation: jamband 1.1s linear infinite; pointer-events: none; }
+.jam-box { position: relative; z-index: 1; text-align: center; display: grid; gap: 10px; }
+.jam-t { font-family: var(--display); font-weight: 800; font-size: clamp(30px, 8vw, 72px); color: #fff; letter-spacing: .04em; text-shadow: 3px 0 #ff3b3b, -3px 0 #39d0ff; animation: jamtxt .3s steps(2) infinite; }
+.jam-s { font-family: var(--mono); color: var(--cyan); font-size: 15px; }
+.jam-n { font-family: var(--mono); font-size: clamp(36px, 9vw, 64px); font-weight: 800; color: var(--pumpkin); font-variant-numeric: tabular-nums; }
+@keyframes jamshake { 0% { transform: translate(0,0); } 50% { transform: translate(-4px,2px); } 100% { transform: translate(3px,-2px); } }
+@keyframes jamnoise { 0% { transform: translate(0,0); } 33% { transform: translate(-3%,2%); } 66% { transform: translate(2%,-3%); } }
+@keyframes jamband { from { top: -20%; } to { top: 110%; } }
+@keyframes jamtxt { 0% { transform: skewX(0); clip-path: inset(0 0 0 0); } 50% { transform: skewX(-8deg) translateX(4px); clip-path: inset(10% 0 30% 0); } }
+body.jammed > *:not(.jam) { filter: hue-rotate(40deg) contrast(1.4) blur(.6px); }
+@media (prefers-reduced-motion: reduce) { .jam, .jam::before, .jam::after, .jam-t { animation: none; } }
 .sms-form { display: flex; gap: 8px; align-items: flex-end; }
 .sms-form textarea { flex: 1; min-width: 0; resize: none; background: var(--void); color: var(--ink); border: 1px solid var(--line); border-radius: 18px; padding: 9px 14px; font-family: var(--mono); font-size: 15px; line-height: 1.4; }
 .sms-form textarea:focus { outline: none; border-color: var(--cyan); }
@@ -536,6 +549,13 @@ button.mini { padding: 5px 10px; font-size: 11px; }
   </section>
 </div>
 
+<div class="jam" id="jam" hidden role="alert" aria-live="assertive">
+  <div class="jam-box">
+    <div class="jam-t">SIGNALAS TRUKDOMAS</div>
+    <div class="jam-s">Grinčas blokuoja ryšį. Neteisinga žinutė.</div>
+    <div class="jam-n" id="jamn">20</div>
+  </div>
+</div>
 <div class="lock" id="lock" hidden role="dialog" aria-label="Užrakintas ekranas">
   <div class="tr" id="tr2" aria-hidden="true"></div>
   <div class="lk-top">
@@ -640,6 +660,8 @@ function lockOut(reason) {
     ? "Laikas baigėsi. Grinch.exe pavogė Kalėdas."
     : "Visi bandymai išnaudoti. Grinch.exe pavogė Kalėdas.";
   $("pwin").disabled = true; $("go").disabled = true;
+  clearInterval(jamTimer); jamTimer = null; $("jam").hidden = true; document.body.classList.remove("jammed");
+  mzEnable(false);
   $("hacked").hidden = false;
   startRain();
 }
@@ -981,10 +1003,30 @@ function mzRelease() {
 function mzCommit() { clearTimeout(mzGap); if (mzBuf) { mzLetters.push(mzBuf); mzBuf = ""; if (mzLetters.length > 12) mzLetters.shift(); mzRender(); } }
 function mzClear() { clearTimeout(mzGap); mzLetters = []; mzBuf = ""; mzRender(); }
 function mzEnable(on) { $("mzkey").disabled = !on; $("mzdel").disabled = !on; $("smsgo").disabled = !on; }
+var JAM_SEC = 20, jamTimer = null;
+function jamStart() {
+  var left = JAM_SEC;
+  $("jamn").textContent = left;
+  $("jam").hidden = false; document.body.classList.add("jammed");
+  clearInterval(jamTimer);
+  jamTimer = setInterval(function () {
+    if (pausedAt) return;                       /* mokytojo pauzė sustabdo ir trukdžius */
+    left--;
+    $("jamn").textContent = Math.max(0, left);
+    if (left <= 0 || done) jamStop();
+  }, 1000);
+}
+function jamStop() {
+  clearInterval(jamTimer); jamTimer = null;
+  $("jam").hidden = true; document.body.classList.remove("jammed");
+  smsBusy = false;
+  if (smsStage && !done) { mzEnable(true); $("mzkey").focus(); }
+}
 function smsBubble(text, cls) { var b = document.createElement("div"); b.className = "bub " + cls; b.textContent = text; $("smslog").appendChild(b); $("smslog").scrollTop = $("smslog").scrollHeight; return b; }
 function resetSms() {
   smsStage = false; smsBusy = false;
   (smsTimers || []).forEach(clearTimeout); smsTimers = [];
+  clearInterval(jamTimer); jamTimer = null; $("jam").hidden = true; document.body.classList.remove("jammed");
   $("sms").hidden = true;
   $("smslog").textContent = "";
   smsBubble("Ha! Manai, kad atspėjai slaptažodį ir viskas? Na, parašyk man, jei drįsti...", "them");
@@ -1002,10 +1044,9 @@ function sendSms() {
     Sync.attempt({ ts: Date.now(), v: ("SMS: " + word).slice(0, 40), ok: false });
     smsBusy = true; mzEnable(false);
     smsTimers.push(setTimeout(function () {
-      smsBubble("Cha cha! Nieko nesupratau. Aš laukiu SMS... Morzės kodu.", "them");
-      smsBusy = false;
-      if (!done) { mzEnable(true); $("mzkey").focus(); }
-    }, 900));
+      smsBubble("Cha cha! Nieko nesupratau. Ryšį trukdau " + JAM_SEC + " sekundžių!", "them");
+      jamStart();
+    }, 700));
     return;
   }
   done = true;
