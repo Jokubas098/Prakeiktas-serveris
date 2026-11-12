@@ -465,7 +465,7 @@ body.jammed > *:not(.jam) { filter: hue-rotate(40deg) contrast(1.4) blur(.6px); 
     <div class="sms-top"><div class="sms-ava" aria-hidden="true">G</div><div class="sms-who"><b id="smsh">Grinčas</b><small>+370 6GR INCH</small></div></div>
     <p class="sms-task">Durys atrakintos, bet Grinčas dar kontroliuoja serverį. Grinčas supranta tik Morzės kodą. Nusiųsk jam SMS Morzės kodu, kad pabėgtum!</p>
     <div class="sms-log" id="smslog" aria-live="polite">
-      <div class="bub them">Ha! Manai, kad atspėjai slaptažodį ir viskas? Na, parašyk man, jei drįsti...</div>
+      
     </div>
     <div class="mz" id="mz">
       <div class="mz-line"><span class="mz-sym" id="mzsym" aria-live="polite"></span><span class="mz-txt" id="mztxt"></span></div>
@@ -1023,6 +1023,16 @@ function jamStop() {
   smsBusy = false;
   if (smsStage && !done) { mzEnable(true); $("mzkey").focus(); }
 }
+/* Grinčas rašo tik Morzės kodu: raidės atskirtos tarpu, žodžiai – brūkšniu / */
+var MZ_ENC = { "0":"-----","1":".----","2":"..---","3":"...--","4":"....-","5":".....","6":"-....","7":"--...","8":"---..","9":"----." };
+for (var mzk in MZ) MZ_ENC[MZ[mzk]] = mzk;
+var MZ_LT = { "Ą":"A","Č":"C","Ę":"E","Ė":"E","Į":"I","Š":"S","Ų":"U","Ū":"U","Ž":"Z" };
+function toMorse(t) {
+  return t.toUpperCase().split(/\s+/).filter(Boolean).map(function (w) {
+    return w.split("").map(function (c) { c = MZ_LT[c] || c; return MZ_ENC[c] ? mzPretty(MZ_ENC[c]) : ""; }).filter(Boolean).join(" ");
+  }).filter(Boolean).join("  /  ");
+}
+function grinch(text) { var b = smsBubble(toMorse(text), "them"); b.setAttribute("aria-label", "Grinčo žinutė Morzės kodu"); return b; }
 function smsBubble(text, cls) { var b = document.createElement("div"); b.className = "bub " + cls; b.textContent = text; $("smslog").appendChild(b); $("smslog").scrollTop = $("smslog").scrollHeight; return b; }
 function resetSms() {
   smsStage = false; smsBusy = false;
@@ -1030,7 +1040,7 @@ function resetSms() {
   clearInterval(jamTimer); jamTimer = null; jamCount = 0; $("jam").hidden = true; document.body.classList.remove("jammed");
   $("sms").hidden = true;
   $("smslog").textContent = "";
-  smsBubble("Ha! Manai, kad atspėjai slaptažodį ir viskas? Na, parašyk man, jei drįsti...", "them");
+  grinch("HA HA NEPABEGSI");
   mzDown = 0; $("mzkey").classList.remove("down"); mzTone(false);
   mzClear(); mzEnable(true);
 }
@@ -1046,9 +1056,7 @@ function sendSms() {
     smsBusy = true; mzEnable(false);
     smsTimers.push(setTimeout(function () {
       jamCount++;
-      smsBubble(jamCount === 1
-        ? "Cha cha! Nieko nesupratau. Ryšį trukdau " + jamSecs() + " sekundžių!"
-        : "Vėl nesąmonės! Šįkart trukdau ilgiau: " + jamSecs() + " sekundžių!", "them");
+      grinch(jamCount === 1 ? "NESUPRATAU TRUKDAU " + jamSecs() + " S" : "VEL TRUKDAU " + jamSecs() + " S");
       jamStart();
     }, 700));
     return;
@@ -1065,7 +1073,7 @@ function sendSms() {
   smsTimers.push(setTimeout(function () { typing = smsBubble("Grinčas rašo...", "them typing"); }, 1100));
   smsTimers.push(setTimeout(function () {
     if (typing) typing.remove();
-    smsBubble("NEEE! Mano serveris lūžta... Gerai jau, bėkit. Kalėdos jūsų!", "them");
+    grinch("NEEE BEKIT");
   }, 2600));
   smsTimers.push(setTimeout(function () {
     $("finalmsg").textContent = cfg.fin;
@@ -1089,6 +1097,7 @@ document.addEventListener("keydown", function (e) {
 document.addEventListener("keyup", function (e) { if (e.code === "Space" && smsStage) { e.preventDefault(); mzRelease(); } });
 $("mzdel").addEventListener("click", function () { clearTimeout(mzGap); if (mzBuf) mzBuf = ""; else mzLetters.pop(); mzRender(); });
 $("smsgo").addEventListener("click", sendSms);
+if (!$("smslog").children.length) grinch("HA HA NEPABEGSI");
 
 /* Užrakintas ekranas iki paleidimo. Kai laikas baigiasi, atsiveria durys ir prasideda laikmatis. */
 var locked = false, lockEnd = 0, lockTimer = null;
