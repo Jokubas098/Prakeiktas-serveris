@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grinčo skaičių labirintas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=JetBrains+Mono:wght@400;600;800&display=swap">
+<style>
+/* Layout: full-screen terminal. Wide: grid left, readout + console right. Narrow: stacked. Single deliberate dark look. */
+:root{
+  --bg:#050a07; --panel:#0a140e; --cell:#0d1d13; --line:#1c4a2c;
+  --fg:#5cff8d; --dim:#2f8f52; --muted:#4b7a5c; --red:#ff4d5e; --amber:#ffc23d; --cyan:#4ee8ff;
+  --f-display:"VT323","Courier New",monospace;
+  --f-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Menlo,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0}
+html{background:var(--bg)}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-mono);font-size:15px;line-height:1.5;
+  background-image:repeating-linear-gradient(0deg,rgba(92,255,141,.035) 0 1px,transparent 1px 3px)}
+.app{min-height:100%;box-sizing:border-box;padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px;background:var(--bg);
+  background-image:repeating-linear-gradient(0deg,rgba(92,255,141,.035) 0 1px,transparent 1px 3px)}
+.app:fullscreen{padding-block:24px;padding-inline:32px}
+.bar{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.bar i{width:10px;height:10px;border-radius:50%;background:var(--line);display:inline-block}
+.bar i:first-child{background:var(--red)}
+.bar .path{margin-left:8px}
+.back{color:var(--dim);text-decoration:none;margin-left:6px;font-weight:600}
+.back:hover{color:var(--fg)}
+.back:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.fs{margin-left:auto;font:600 .75rem var(--f-mono);padding:5px 10px;border:1px solid var(--fg);background:transparent;color:var(--fg);cursor:pointer;letter-spacing:.06em}
+.fs:hover{background:var(--fg);color:var(--bg)}
+h1{font-family:var(--f-display);font-weight:400;font-size:clamp(2.2rem,4.5vw,3.6rem);line-height:1;margin:0;text-shadow:0 0 8px rgba(92,255,141,.55);text-wrap:balance}
+h1 .cur{animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.main{flex:1;display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+@media (min-width:820px){.main{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:stretch}}
+.board{display:flex;justify-content:center;align-items:center;min-width:0}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%;max-width:min(100%,calc(100vh - 170px));min-width:0}
+@media (max-width:819px){.grid{max-width:100%}}
+.side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.lead{margin:0;color:var(--dim);font-size:.9rem;max-width:62ch}
+.lead b{color:var(--fg);font-weight:600}
+.status{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line)}
+.status>div{background:var(--panel);padding:8px 14px}
+.status small{display:block;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.big{font:400 clamp(2.6rem,5vw,4rem)/1 var(--f-display);font-variant-numeric:tabular-nums;text-shadow:0 0 10px rgba(92,255,141,.5)}
+.target .big{color:var(--amber);text-shadow:0 0 10px rgba(255,194,61,.45)}
+.cell{aspect-ratio:1;max-width:100%;border:1px solid var(--line);background:var(--cell);color:var(--dim);font:400 clamp(1.3rem,5.5vw,3rem)/1 var(--f-display);display:flex;align-items:center;justify-content:center;flex-direction:column;padding:0;cursor:default;font-variant-numeric:tabular-nums}
+@media (min-width:820px){.cell{font-size:clamp(1.6rem,3.2vw,3.2rem)}}
+.cell.next{color:var(--fg);border-color:var(--fg);cursor:pointer;box-shadow:inset 0 0 12px rgba(92,255,141,.25),0 0 8px rgba(92,255,141,.3)}
+.cell.next:hover{background:#12301e}
+.cell.visited{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.cell.here{outline:2px solid var(--cyan);outline-offset:2px}
+.cell.bad{animation:glitch .4s;border-color:var(--red);color:var(--red)}
+.cell .tag{font:600 .5rem var(--f-mono);letter-spacing:.1em;text-transform:uppercase;opacity:.85;margin-bottom:2px}
+.cell.start{background:#0f2a3a;color:var(--cyan);border-color:var(--cyan)}
+.cell.exit{background:#2e2408;color:var(--amber);border-color:var(--amber)}
+.cell.exit.open{background:var(--amber);color:var(--bg)}
+.cell:focus-visible,.actions button:focus-visible,.fs:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+@keyframes glitch{20%{transform:translate(-3px,1px)}40%{transform:translate(3px,-1px)}60%{transform:translate(-2px,0)}80%{transform:translate(2px,1px)}}
+.console{background:var(--panel);border:1px solid var(--line);padding:10px 12px;font-size:.82rem;flex:1;min-height:7.5em;max-height:16em;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.console p{margin:0;overflow-wrap:anywhere}
+.console .ok{color:var(--fg)} .console .err{color:var(--red)} .console .sys{color:var(--muted)} .console .warn{color:var(--amber)}
+.granted{border:1px solid var(--fg);background:#0b2214;padding:14px;text-align:center;box-shadow:0 0 18px rgba(92,255,141,.25)}
+.granted small{display:block;letter-spacing:.2em;font-size:.72rem;color:var(--dim)}
+.granted .code{font:400 clamp(4rem,9vw,7rem)/1 var(--f-display);letter-spacing:.25em;text-shadow:0 0 14px rgba(92,255,141,.7);font-variant-numeric:tabular-nums}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions button{font:600 .85rem var(--f-mono);padding:7px 14px;border:1px solid var(--fg);background:transparent;color:var(--fg);cursor:pointer}
+.actions button:hover{background:var(--fg);color:var(--bg)}
+.rules{font-size:.8rem;color:var(--muted);margin:0;padding:0;list-style:none}
+.rules li::before{content:"// ";color:var(--line)}
+@media (prefers-reduced-motion:reduce){.cell.bad,h1 .cur{animation:none}}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <div class="bar"><i></i><i></i><i></i><a class="back" href="index.html">← serveriai</a><span class="path">grinch@serveris:~/dovanu-spyna</span>
+    <button class="fs" id="fs" type="button">[ ⛶ visas ekranas ]</button></div>
+  <h1>&gt; LAUŽIAM_GRINČO_SERVERĮ<span class="cur">_</span></h1>
+
+  <div class="main">
+    <div class="board"><div class="grid" id="grid"></div></div>
+
+    <div class="side">
+      <p class="lead">Grinčas užrakino dovanų dėžę. Startuokite nuo skaičiaus <b>START</b> mazge, judėkite tik <b>→ dešinėn</b> arba <b>↓ žemyn</b> ir kiekviename mazge atlikite veiksmą. Prie <b>DURŲ</b> atneškite tikslų skaičių, ir spyna atiduos dovanų rakto kodą.</p>
+
+      <div class="status">
+        <div><small>Registras</small><div class="big" id="cur">0</div></div>
+        <div class="target"><small>Reikia prie durų</small><div class="big" id="tgt">0</div></div>
+      </div>
+
+      <div class="granted" id="granted" hidden>
+        <small>ACCESS GRANTED · DOVANŲ SPYNOS KODAS</small>
+        <div class="code" id="code">----</div>
+      </div>
+
+      <div class="console" id="log" aria-live="polite"></div>
+
+      <div class="actions">
+        <button id="undo" type="button">[ ↶ atgal ]</button>
+        <button id="reset" type="button">[ perkrauti ]</button>
+      </div>
+
+      <ul class="rules">
+        <li>Dalyba turi būti be liekanos, kitaip ugniasienė užblokuoja mazgą.</li>
+        <li>Registras negali tapti nuliu ar neigiamu.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+const M={start:7,target:29,code:"5283",grid:[["+4","-3","+9","*3","+7"],["*3","+9",":3","-7","+8"],["*2","+6","+8",":5",":5"],["+2","*4","+6","+5","*4"],["+7","+5","-2",":3","+5"]]};
+const N=5,$=id=>document.getElementById(id);
+let path=[],vals=[],done=false,timer=null;
+const pretty=op=>({"+":"+","-":"−","*":"·",":":":"}[op[0]])+op.slice(1);
+const apply=(v,op)=>{const n=+op.slice(1);return op[0]==="+"?v+n:op[0]==="-"?v-n:op[0]==="*"?v*n:v/n};
+function log(t,cls="ok"){const p=document.createElement("p");p.className=cls;p.textContent=t;const l=$("log");l.appendChild(p);l.scrollTop=l.scrollHeight}
+function reset(){
+  clearInterval(timer);path=[[0,0]];vals=[M.start];done=false;$("granted").hidden=true;$("log").innerHTML="";
+  log("$ connect grinch-serveris","sys");
+  log(`[ok] prisijungta. registras = ${M.start}`);
+  log(`[?] tikslas: atnešti ${M.target} prie DURŲ`,"warn");
+  render();
+}
+function isNext(r,c){if(done)return false;const[pr,pc]=path[path.length-1];return(r===pr&&c===pc+1)||(c===pc&&r===pr+1)}
+function render(){
+  $("cur").textContent=vals[vals.length-1];$("tgt").textContent=M.target;
+  const g=$("grid");g.innerHTML="";const won=done&&vals[vals.length-1]===M.target;
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const b=document.createElement("button");b.type="button";b.className="cell";b.id=`c${r}${c}`;
+    const vi=path.findIndex(p=>p[0]===r&&p[1]===c),isExit=r===N-1&&c===N-1;
+    if(r===0&&c===0){b.classList.add("start");b.innerHTML=`<span class="tag">start</span>${M.start}`}
+    else if(isExit){b.classList.add("exit");if(won)b.classList.add("open");b.innerHTML=`<span class="tag">durys</span>${won?"OPEN":"LOCK"}`}
+    else b.textContent=pretty(M.grid[r][c]);
+    if(vi>0&&!isExit)b.classList.add("visited");
+    if(vi===path.length-1)b.classList.add("here");
+    if(isNext(r,c)){b.classList.add("next");b.onclick=()=>step(r,c,b)}else b.setAttribute("aria-disabled","true");
+    b.setAttribute("aria-label",b.textContent);
+    g.appendChild(b);
+  }
+}
+function decrypt(code){
+  const el=$("code");$("granted").hidden=false;let n=0;clearInterval(timer);
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches){el.textContent=code;return}
+  timer=setInterval(()=>{n++;const fixed=Math.floor(n/6);
+    el.textContent=code.split("").map((d,i)=>i<fixed?d:Math.floor(Math.random()*10)).join("");
+    if(fixed>=code.length){clearInterval(timer);el.textContent=code}},50);
+}
+function step(r,c,btn){
+  const v=vals[vals.length-1];
+  if(r===N-1&&c===N-1){
+    path.push([r,c]);vals.push(v);done=true;log(`$ unlock durys --raktas ${v}`,"sys");
+    if(v===M.target){log("[ok] ACCESS GRANTED. Iššifruojamas kodas...");render();decrypt(M.code)}
+    else{log(`[x] ACCESS DENIED: ${v} ≠ ${M.target}. Grįžkite ir ieškokite kito kelio.`,"err");render()}
+    return;
+  }
+  const op=M.grid[r][c],nv=apply(v,op);
+  const glitch=()=>{btn.classList.remove("bad");void btn.offsetWidth;btn.classList.add("bad")};
+  if(!Number.isInteger(nv)){glitch();log(`[x] FIREWALL: ${v} ${pretty(op)} nesidalija be liekanos. Mazgas užblokuotas.`,"err");return}
+  if(nv<=0){glitch();log(`[x] FIREWALL: ${v} ${pretty(op)} = ${nv}. Registras turi likti teigiamas.`,"err");return}
+  path.push([r,c]);vals.push(nv);log(`> ${v} ${pretty(op)} = ${nv}`);render();
+}
+$("undo").onclick=()=>{if(path.length>1){path.pop();vals.pop();done=false;$("granted").hidden=true;clearInterval(timer);log("$ rollback --1","sys");log(`[ok] registras = ${vals[vals.length-1]}`);render()}};
+$("reset").onclick=reset;
+const fsBtn=$("fs");
+function fsLabel(){fsBtn.textContent=document.fullscreenElement?"[ ✕ išeiti ]":"[ ⛶ visas ekranas ]"}
+fsBtn.onclick=async()=>{
+  try{
+    if(document.fullscreenElement)await document.exitFullscreen();
+    else await (document.documentElement.requestFullscreen?document.documentElement.requestFullscreen():Promise.reject());
+  }catch(e){log("[!] Visas ekranas čia nepalaikomas. Paspauskite F11.","warn")}
+};
+document.addEventListener("fullscreenchange",fsLabel);
+reset();
+</script>
+</body>
+</html>

@@ -190,6 +190,10 @@ button.mini { padding: 5px 10px; font-size: 11px; }
 .final h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: clamp(28px, 8vw, 48px); color: var(--cyan); text-shadow: 0 0 18px rgba(159,212,245,.5); line-height: 1; }
 .final p { margin: 0; white-space: pre-line; }
 .final .time { color: var(--pumpkin); font-weight: 800; }
+.final .gift-task { color: var(--cyan); }
+.final .gift-go { align-self: flex-start; font-weight: 800; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; text-decoration: none; padding: 12px 18px; border: 1px solid var(--pumpkin); background: var(--pumpkin); color: #1a1206; }
+.final .gift-go:hover { background: #ffd47a; }
+.final .gift-go:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 
 /* SMS Grinčui: telefono ekranas po teisingo slaptažodžio */
 .sms { width: 100%; max-width: 380px; margin-inline: auto; border: 2px solid var(--line); border-radius: 26px; background: #0e1a2e; padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 30px rgba(159,212,245,.18); }
@@ -484,6 +488,8 @@ body.jammed > *:not(.jam) { filter: hue-rotate(40deg) contrast(1.4) blur(.6px); 
     <h2>Kalėdos išgelbėtos</h2>
     <p id="finalmsg"></p>
     <p>Jūsų laikas: <span class="time" id="finaltime">00:00</span></p>
+    <p class="gift-task">Bet dovanų dėžė vis dar užrakinta Grinčo kodu. Įsilaužkite į jos spyną ir gausite raktą.</p>
+    <a class="gift-go" href="labirintas.html">Įsilaužti į dovanų spyną →</a>
   </section>
 
   <section class="teacher" id="teacher" aria-labelledby="th" hidden>
