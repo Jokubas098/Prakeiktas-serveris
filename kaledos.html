@@ -1048,7 +1048,7 @@ function resetSms() {
   clearInterval(jamTimer); jamTimer = null; jamCount = 0; $("jam").hidden = true; document.body.classList.remove("jammed");
   $("sms").hidden = true;
   $("smslog").textContent = "";
-  grinch("Ha! Manai, kad atspėjai slaptažodį ir viskas? Na, parašyk man, jei drįsti...");
+  grinch("Ha! Manai, kad atspėjai slaptažodį ir viskas? Na, parašyk man SMS, jei drįsti...");
   mzDown = 0; $("mzkey").classList.remove("down"); mzTone(false);
   mzClear(); mzEnable(true);
 }
@@ -1066,8 +1066,8 @@ function sendSms() {
     smsTimers.push(setTimeout(function () {
       jamCount++;
       grinch(jamCount === 1
-        ? "Cha cha! Nieko nesupratau. Ryšį trukdau " + jamSecs() + " sekundžių!"
-        : "Vėl nesąmonės! Šįkart trukdau ilgiau: " + jamSecs() + " sekundžių!");
+        ? "Cha cha! Nieko nesupratau. Sakiau: parašyk man SMS, jei drįsti! Ryšį trukdau " + jamSecs() + " sekundžių!"
+        : "Vėl nesąmonės! Parašyk SMS, jei drįsti... Šįkart trukdau ilgiau: " + jamSecs() + " sekundžių!");
       jamStart();
     }, 700));
     return;
@@ -1108,7 +1108,7 @@ document.addEventListener("keydown", function (e) {
 document.addEventListener("keyup", function (e) { if (e.code === "Space" && smsStage) { e.preventDefault(); mzRelease(); } });
 $("mzdel").addEventListener("click", function () { clearTimeout(mzGap); if (mzBuf) mzBuf = ""; else mzLetters.pop(); mzRender(); });
 $("smsgo").addEventListener("click", sendSms);
-if (!$("smslog").children.length) grinch("Ha! Manai, kad atspėjai slaptažodį ir viskas? Na, parašyk man, jei drįsti...");
+if (!$("smslog").children.length) grinch("Ha! Manai, kad atspėjai slaptažodį ir viskas? Na, parašyk man SMS, jei drįsti...");
 
 /* Užrakintas ekranas iki paleidimo. Kai laikas baigiasi, atsiveria durys ir prasideda laikmatis. */
 var locked = false, lockEnd = 0, lockTimer = null;
