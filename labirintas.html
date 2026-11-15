@@ -71,13 +71,39 @@ h1 .cur{animation:blink 1s steps(1) infinite}
 .rules{font-size:.8rem;color:var(--muted);margin:0;padding:0;list-style:none}
 .rules li::before{content:"// ";color:var(--line)}
 @media (prefers-reduced-motion:reduce){.cell.bad,h1 .cur{animation:none}}
+/* Pilno ekrano užraktas: kol kodas neatrakintas, išėjus iš pilno ekrano viskas uždengiama */
+.fslock{position:fixed;inset:0;z-index:1000;background:var(--bg);display:grid;place-items:center;padding:16px;text-align:center;
+  background-image:repeating-linear-gradient(0deg,rgba(92,255,141,.05) 0 1px,transparent 1px 3px)}
+.fslock .box{max-width:480px;display:flex;flex-direction:column;gap:14px;align-items:center}
+.fslock h2{font:400 clamp(2.4rem,7vw,4rem)/1 var(--f-display);margin:0;text-shadow:0 0 10px rgba(92,255,141,.55)}
+.fslock.warn h2{color:var(--red);text-shadow:0 0 10px rgba(255,77,94,.55)}
+.fslock p{margin:0;color:var(--dim)}
+.fslock button{font:600 1rem var(--f-mono);padding:12px 22px;border:2px solid var(--fg);background:var(--fg);color:var(--bg);cursor:pointer;letter-spacing:.06em}
+.fslock button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+.fslock .cnt{font-size:.8rem;color:var(--amber)}
+.fslock[hidden]{display:none}
 </style>
 </head>
 <body>
 
+<div class="fslock" id="fsstart" role="dialog" aria-labelledby="fss">
+  <div class="box">
+    <h2 id="fss">&gt; DOVANŲ SPYNA</h2>
+    <p>Įsilaužimas vyksta tik pilname ekrane. Kol neatrakinsite spynos, išeiti negalima.</p>
+    <button type="button" id="fsgo">[ PRADĖTI ĮSILAUŽIMĄ ]</button>
+  </div>
+</div>
+<div class="fslock warn" id="fsback" role="alertdialog" aria-labelledby="fsb" hidden>
+  <div class="box">
+    <h2 id="fsb">RYŠYS NUTRŪKO</h2>
+    <p>Grinčas pastebėjo, kad išėjote iš pilno ekrano. Grįžkite, kad tęstumėte įsilaužimą.</p>
+    <button type="button" id="fsret">[ GRĮŽTI Į PILNĄ EKRANĄ ]</button>
+    <div class="cnt" id="fscnt"></div>
+  </div>
+</div>
+
 <div class="app" id="app">
-  <div class="bar"><i></i><i></i><i></i><a class="back" href="index.html">← serveriai</a><span class="path">grinch@serveris:~/dovanu-spyna</span>
-    <button class="fs" id="fs" type="button">[ ⛶ visas ekranas ]</button></div>
+  <div class="bar"><i></i><i></i><i></i><span class="path">grinch@serveris:~/dovanu-spyna</span></div>
   <h1>&gt; LAUŽIAM_GRINČO_SERVERĮ<span class="cur">_</span></h1>
 
   <div class="main">
@@ -165,15 +191,34 @@ function step(r,c,btn){
 }
 $("undo").onclick=()=>{if(path.length>1){path.pop();vals.pop();done=false;$("granted").hidden=true;clearInterval(timer);log("$ rollback --1","sys");log(`[ok] registras = ${vals[vals.length-1]}`);render()}};
 $("reset").onclick=reset;
-const fsBtn=$("fs");
-function fsLabel(){fsBtn.textContent=document.fullscreenElement?"[ ✕ išeiti ]":"[ ⛶ visas ekranas ]"}
-fsBtn.onclick=async()=>{
-  try{
-    if(document.fullscreenElement)await document.exitFullscreen();
-    else await (document.documentElement.requestFullscreen?document.documentElement.requestFullscreen():Promise.reject());
-  }catch(e){log("[!] Visas ekranas čia nepalaikomas. Paspauskite F11.","warn")}
-};
-document.addEventListener("fullscreenchange",fsLabel);
+/* Pilnas ekranas ir užraktas, kol spyna neatrakinta */
+const won=()=>done&&vals[vals.length-1]===M.target;
+const isFs=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
+const canFs=!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen);
+let fsStarted=false,fsExits=0;
+function reqFs(){const e=document.documentElement,f=e.requestFullscreen||e.webkitRequestFullscreen;try{const r=f&&f.call(e);if(r&&r.catch)r.catch(()=>{})}catch(z){}}
+function fsCheck(){
+  if(!fsStarted||won()||!canFs)return;
+  if(isFs()){$("fsback").hidden=true;return}
+  fsExits++;$("fscnt").textContent="Išėjimų iš pilno ekrano: "+fsExits;
+  $("fsback").hidden=false;$("fsret").focus();
+}
+$("fsgo").onclick=()=>{reqFs();fsStarted=true;$("fsstart").hidden=true;
+  if(!canFs)log("[!] Šis įrenginys nepalaiko pilno ekrano.","warn");
+  setTimeout(()=>{if(canFs&&!isFs()){$("fsstart").hidden=false;fsStarted=false}},700)};
+$("fsret").onclick=()=>{reqFs();setTimeout(()=>{if(isFs())$("fsback").hidden=true},300)};
+document.addEventListener("fullscreenchange",fsCheck);
+document.addEventListener("webkitfullscreenchange",fsCheck);
+/* neleisti išeiti: perkrovimas, uždarymas, naujas skirtukas, atgal mygtukas */
+window.addEventListener("beforeunload",e=>{if(fsStarted&&!won()){e.preventDefault();e.returnValue="";return""}});
+document.addEventListener("keydown",e=>{
+  if(won())return;
+  const k=e.key,c=e.ctrlKey||e.metaKey;
+  if(k==="F5"||k==="F11"||k==="F12"||(c&&/^[rwtnul]$/i.test(k))||(c&&e.shiftKey&&/^[ijcn]$/i.test(k))||(e.altKey&&(k==="F4"||k==="ArrowLeft"||k==="ArrowRight")))e.preventDefault();
+},true);
+history.pushState({lock:1},"",location.href);
+window.addEventListener("popstate",()=>{if(!won())history.pushState({lock:1},"",location.href)});
+document.addEventListener("contextmenu",e=>{if(!won())e.preventDefault()});
 reset();
 </script>
 </body>
