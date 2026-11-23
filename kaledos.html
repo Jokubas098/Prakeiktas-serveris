@@ -582,7 +582,6 @@ body.jammed > *:not(.jam) { filter: hue-rotate(40deg) contrast(1.4) blur(.6px); 
     <p id="finalmsg"></p>
     <p>Jūsų laikas: <span class="time" id="finaltime">00:00</span></p>
     <p class="gift-task">Bet dovanų dėžė vis dar užrakinta Grinčo kodu. Įsilaužkite į jos spyną ir gausite raktą.</p>
-    <button type="button" class="gift-go" id="giftgo">Įsilaužti į dovanų spyną →</button>
   </section>
 
 <section id="lab" hidden aria-label="Dovanų spynos labirintas">
@@ -1345,7 +1344,6 @@ function hardReset(){open=false;exits=0;reported=false;$("fsback").hidden=true;$
 reset();
 return { show: show, reset: hardReset };
 })();
-$("giftgo").addEventListener("click", function () { Lab.show(); });
 
 /* Užrakintas ekranas iki paleidimo. Kai laikas baigiasi, atsiveria durys ir prasideda laikmatis. */
 var locked = false, lockEnd = 0, lockTimer = null;
