@@ -334,8 +334,6 @@ body.jammed > *:not(.jam) { filter: hue-rotate(40deg) contrast(1.4) blur(.6px); 
 #lab h1{font-family:var(--f-display);font-weight:400;font-size:clamp(2.2rem,4.5vw,3.6rem);line-height:1;margin:0;color:var(--fg);text-shadow:0 0 8px rgba(92,255,141,.55);animation:none}
 #lab .side{position:static;overflow:visible;-webkit-mask-image:none;mask-image:none;min-height:0}
 #lab button{text-transform:none;letter-spacing:normal}
-#lab .labclose{margin-left:auto;font:600 .75rem var(--f-mono);padding:5px 10px;border:1px solid var(--fg);background:transparent;color:var(--fg);cursor:pointer}
-#lab .labclose:hover{background:var(--fg);color:var(--bg)}
 
 /* Teacher console */
 .teacher { border-top: 1px dashed var(--line); padding-top: 18px; display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
@@ -582,6 +580,7 @@ body.jammed > *:not(.jam) { filter: hue-rotate(40deg) contrast(1.4) blur(.6px); 
     <p id="finalmsg"></p>
     <p>Jūsų laikas: <span class="time" id="finaltime">00:00</span></p>
     <p class="gift-task">Bet dovanų dėžė vis dar užrakinta Grinčo kodu. Įsilaužkite į jos spyną ir gausite raktą.</p>
+    <button type="button" class="gift-go" id="giftgo">Įsilaužti į dovanų spyną →</button>
   </section>
 
 <section id="lab" hidden aria-label="Dovanų spynos labirintas">
@@ -595,7 +594,7 @@ body.jammed > *:not(.jam) { filter: hue-rotate(40deg) contrast(1.4) blur(.6px); 
 </div>
 
 <div class="app" id="lab-app">
-  <div class="bar"><i></i><i></i><i></i><span class="path">grinch@serveris:~/dovanu-spyna</span><button type="button" class="labclose" id="lab-close" hidden>[ ✕ uždaryti ]</button></div>
+  <div class="bar"><i></i><i></i><i></i><span class="path">grinch@serveris:~/dovanu-spyna</span></div>
   <h1>&gt; LAUŽIAM_GRINČO_SERVERĮ<span class="cur">_</span></h1>
 
   <div class="main">
@@ -1331,8 +1330,7 @@ window.addEventListener("popstate",()=>{if(locked())history.pushState({lab:1},""
 document.addEventListener("contextmenu",e=>{if(locked())e.preventDefault()});
 /* kai spyna atrakinta: pranešti mokytojui ir leisti uždaryti */
 const _decrypt=decrypt;
-decrypt=function(code){_decrypt(code);$("close").hidden=false;if(!reported){reported=true;Sync.patch({status:"gift",giftAt:Date.now()})}};
-$("close").onclick=()=>{open=false;document.getElementById("lab").hidden=true;document.body.style.overflow=""};
+decrypt=function(code){_decrypt(code);if(!reported){reported=true;Sync.patch({status:"gift",giftAt:Date.now()})}};
 function show(){
   reqFs();
   open=true;document.getElementById("lab").hidden=false;document.body.style.overflow="hidden";
@@ -1340,10 +1338,11 @@ function show(){
   Sync.patch({status:"maze"});
   setTimeout(()=>{if(canFs&&!isFs()&&locked()){$("fsback").hidden=false}},700);
 }
-function hardReset(){open=false;exits=0;reported=false;$("fsback").hidden=true;$("close").hidden=true;document.getElementById("lab").hidden=true;document.body.style.overflow="";reset()}
+function hardReset(){open=false;exits=0;reported=false;$("fsback").hidden=true;document.getElementById("lab").hidden=true;document.body.style.overflow="";reset()}
 reset();
 return { show: show, reset: hardReset };
 })();
+$("giftgo").addEventListener("click", function () { Lab.show(); });
 
 /* Užrakintas ekranas iki paleidimo. Kai laikas baigiasi, atsiveria durys ir prasideda laikmatis. */
 var locked = false, lockEnd = 0, lockTimer = null;
